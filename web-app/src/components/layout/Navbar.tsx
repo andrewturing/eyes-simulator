@@ -1,20 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/utils/useAuth';
 
 export default function Navbar() {
   const { user, loading, logout } = useAuth(false); // Don't auto-redirect
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     await logout();
+    setDropdownOpen(false);
     setMenuOpen(false);
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <nav className="bg-indigo-600">
+    <nav className="bg-indigo-600 relative z-50">
       <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
@@ -41,11 +58,13 @@ export default function Navbar() {
               {loading ? (
                 <div className="text-white">Loading...</div>
               ) : user ? (
-                <div className="relative ml-3">
+                <div className="relative ml-3" ref={dropdownRef}>
                   <div>
                     <button
-                      onClick={() => setMenuOpen(!menuOpen)}
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
                       className="flex items-center max-w-xs text-sm bg-indigo-600 rounded-full focus:outline-none focus:ring-2 focus:ring-white"
+                      aria-expanded={dropdownOpen}
+                      aria-haspopup="true"
                     >
                       <span className="sr-only">Open user menu</span>
                       <div className="p-2 text-white bg-indigo-700 rounded-full">
@@ -54,16 +73,38 @@ export default function Navbar() {
                       <span className="ml-2 text-white">{user.name}</span>
                     </button>
                   </div>
-                  {menuOpen && (
+                  {dropdownOpen && (
                     <div
-                      className="absolute right-0 w-48 py-1 mt-2 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                      className="absolute right-0 w-48 py-1 mt-2 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                      role="menu"
+                      aria-orientation="vertical"
+                      aria-labelledby="user-menu-button"
+                      tabIndex={-1}
                     >
-                      <div
+                      <div className="px-4 py-2 text-xs text-gray-500">
+                        Signed in as
+                        <div className="font-medium text-gray-900">{user.email}</div>
+                      </div>
+                      
+                      <div className="border-t border-gray-100 my-1"></div>
+                      
+                      <Link 
+                        href="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        role="menuitem"
+                        tabIndex={-1}
+                      >
+                        Your Profile
+                      </Link>
+                      
+                      <button
                         onClick={handleLogout}
-                        className="block px-4 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                        role="menuitem"
+                        tabIndex={-1}
                       >
                         Sign out
-                      </div>
+                      </button>
                     </div>
                   )}
                 </div>

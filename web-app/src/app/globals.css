@@ -24,3 +24,20 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure dropdowns appear above other elements */
+.z-50 {
+  z-index: 50 !important;
+}
+
+/* Navigation styles */
+nav {
+  position: relative;
+  z-index: 40;
+}
+
+/* Ensure dropdown menus are clickable */
+[role="menu"] {
+  z-index: 100;
+  position: absolute;
+}
