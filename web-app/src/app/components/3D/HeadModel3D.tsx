@@ -22,6 +22,8 @@ const HeadModel = () => {
   const rightEyelidLowerRef = useRef<THREE.Mesh>(null);
   const leftTearFilmRef = useRef<THREE.Mesh>(null);
   const rightTearFilmRef = useRef<THREE.Mesh>(null);
+  const leftEyeGroupRef = useRef<THREE.Group>(null);
+  const rightEyeGroupRef = useRef<THREE.Group>(null);
   
   const {
     pupilSize,
@@ -35,6 +37,18 @@ const HeadModel = () => {
     eyelidPosition,
     tearFilmVisible,
     tearFilmIntensity,
+    // Eye deviation parameters
+    esotropia,
+    exotropia,
+    hypertropia,
+    hypotropia,
+    // Phoria parameters
+    esophoria,
+    exophoria,
+    hyperphoria,
+    hypophoria,
+    // Testing tools
+    occluderPosition,
   } = useEyeStore();
 
   // Helper function to generate a procedural iris texture
@@ -268,6 +282,60 @@ const HeadModel = () => {
     }
   }, [tearFilmVisible, tearFilmIntensity]);
 
+  // Apply eye deviations and phorias
+  useEffect(() => {
+    if (leftEyeGroupRef.current && rightEyeGroupRef.current) {
+      // Reset positions first
+      leftEyeGroupRef.current.position.set(-0.35, 0.3, 0.85);
+      rightEyeGroupRef.current.position.set(0.35, 0.3, 0.85);
+      
+      // Scale factor to convert prismatic diopters to 3D space (adjust as needed)
+      const deviationScale = 0.005;
+      
+      // Apply manifest deviations (tropias) to both eyes
+      
+      // Left eye horizontal deviations
+      const leftXOffset = (esotropia * deviationScale) - (exotropia * deviationScale);
+      leftEyeGroupRef.current.position.x += leftXOffset;
+      
+      // Left eye vertical deviations
+      const leftYOffset = -(hypertropia * deviationScale) + (hypotropia * deviationScale);
+      leftEyeGroupRef.current.position.y += leftYOffset;
+      
+      // Right eye horizontal deviations
+      const rightXOffset = -(esotropia * deviationScale) + (exotropia * deviationScale);
+      rightEyeGroupRef.current.position.x += rightXOffset;
+      
+      // Right eye vertical deviations
+      const rightYOffset = -(hypertropia * deviationScale) + (hypotropia * deviationScale);
+      rightEyeGroupRef.current.position.y += rightYOffset;
+      
+      // Apply latent deviations (phorias) only when the eye is covered
+      
+      // Left eye phorias - only apply when left eye is occluded
+      if (occluderPosition === 'left') {
+        const leftPhoriaX = (esophoria * deviationScale) - (exophoria * deviationScale);
+        const leftPhoriaY = -(hyperphoria * deviationScale) + (hypophoria * deviationScale);
+        
+        leftEyeGroupRef.current.position.x += leftPhoriaX;
+        leftEyeGroupRef.current.position.y += leftPhoriaY;
+      }
+      
+      // Right eye phorias - only apply when right eye is occluded
+      if (occluderPosition === 'right') {
+        const rightPhoriaX = -(esophoria * deviationScale) + (exophoria * deviationScale);
+        const rightPhoriaY = -(hyperphoria * deviationScale) + (hypophoria * deviationScale);
+        
+        rightEyeGroupRef.current.position.x += rightPhoriaX;
+        rightEyeGroupRef.current.position.y += rightPhoriaY;
+      }
+    }
+  }, [
+    esotropia, exotropia, hypertropia, hypotropia,
+    esophoria, exophoria, hyperphoria, hypophoria,
+    occluderPosition
+  ]);
+
   // Animation for subtle head movements
   useFrame((state) => {
     if (headRef.current) {
@@ -304,7 +372,7 @@ const HeadModel = () => {
       </mesh>
       
       {/* Left eye */}
-      <group position={[-0.35, 0.3, 0.85]}>
+      <group ref={leftEyeGroupRef} position={[-0.35, 0.3, 0.85]}>
         {/* Sclera (white of eye) */}
         <mesh ref={leftEyeRef}>
           <sphereGeometry args={[0.2, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
@@ -364,10 +432,18 @@ const HeadModel = () => {
           <boxGeometry args={[0.3, 0.15, 0.25]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
+        
+        {/* Occluder for left eye */}
+        {occluderPosition === 'left' && (
+          <mesh position={[0, 0, 0.25]} rotation={[0, 0, 0]}>
+            <circleGeometry args={[0.25, 32]} />
+            <meshStandardMaterial color="#333" opacity={0.8} transparent={true} />
+          </mesh>
+        )}
       </group>
       
       {/* Right eye */}
-      <group position={[0.35, 0.3, 0.85]}>
+      <group ref={rightEyeGroupRef} position={[0.35, 0.3, 0.85]}>
         {/* Sclera (white of eye) */}
         <mesh ref={rightEyeRef}>
           <sphereGeometry args={[0.2, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
@@ -427,6 +503,14 @@ const HeadModel = () => {
           <boxGeometry args={[0.3, 0.15, 0.25]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
+        
+        {/* Occluder for right eye */}
+        {occluderPosition === 'right' && (
+          <mesh position={[0, 0, 0.25]} rotation={[0, 0, 0]}>
+            <circleGeometry args={[0.25, 32]} />
+            <meshStandardMaterial color="#333" opacity={0.8} transparent={true} />
+          </mesh>
+        )}
       </group>
       
       {/* Nose */}

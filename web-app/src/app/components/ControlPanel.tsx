@@ -448,14 +448,41 @@ const DeviationControls = () => {
     hyperphoria,
     hypophoria,
     setDeviation,
+    activeTool,
+    setActiveTool,
+    occluderPosition,
+    setOccluderPosition,
   } = useEyeStore();
 
   return (
     <ControlGroup>
-      <GroupTitle>Eye Deviations</GroupTitle>
+      <div style={{ 
+        marginBottom: '1rem',
+        padding: '0.75rem 1rem',
+        backgroundColor: '#eef2ff',
+        borderRadius: '0.375rem',
+        borderLeft: '4px solid #4f46e5',
+        fontSize: '0.875rem',
+        color: '#4f46e5'
+      }}>
+        <p style={{ margin: '0 0 0.5rem 0', fontWeight: '500' }}>Using the Deviation Controls:</p>
+        <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+          <li>Tropias are visible at all times</li>
+          <li>Phorias require covering an eye to see the deviation</li>
+          <li>Use the occluder tool below to cover an eye</li>
+        </ul>
+      </div>
+
+      <GroupTitle>Eye Deviations (Tropias)</GroupTitle>
       
       <ControlRow>
-        <Label>Esotropia (Inward)</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Esotropia
+            <span style={{ color: '#4f46e5', marginLeft: '0.25rem', marginRight: '0.25rem' }}>→←</span>
+            (Inward)
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -470,7 +497,13 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Exotropia (Outward)</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Exotropia
+            <span style={{ color: '#4f46e5', marginLeft: '0.25rem', marginRight: '0.25rem' }}>←→</span>
+            (Outward)
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -485,7 +518,13 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Hypertropia (Upward)</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Hypertropia
+            <span style={{ color: '#4f46e5', marginLeft: '0.25rem', marginRight: '0.25rem' }}>↑</span>
+            (Upward)
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -500,7 +539,13 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Hypotropia (Downward)</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Hypotropia
+            <span style={{ color: '#4f46e5', marginLeft: '0.25rem', marginRight: '0.25rem' }}>↓</span>
+            (Downward)
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -515,9 +560,68 @@ const DeviationControls = () => {
       </ControlRow>
 
       <GroupTitle>Phorias (Latent Deviations)</GroupTitle>
+      
+      <ControlRow>
+        <Label style={{ fontWeight: '500', color: '#4f46e5' }}>Occluder Tool</Label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            style={{
+              padding: '0.25rem 0.5rem',
+              borderRadius: '0.25rem',
+              background: activeTool === 'occluder' ? '#4f46e5' : '#e5e7eb',
+              color: activeTool === 'occluder' ? 'white' : '#374151',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+            onClick={() => setActiveTool(activeTool === 'occluder' ? 'none' : 'occluder')}
+          >
+            {activeTool === 'occluder' ? 'Activated' : 'Activate'}
+          </button>
+          
+          {activeTool === 'occluder' && (
+            <>
+              <button
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.25rem',
+                  background: occluderPosition === 'left' ? '#4f46e5' : '#e5e7eb',
+                  color: occluderPosition === 'left' ? 'white' : '#374151',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+                onClick={() => setOccluderPosition(occluderPosition === 'left' ? null : 'left')}
+              >
+                Cover Left
+              </button>
+              
+              <button
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '0.25rem',
+                  background: occluderPosition === 'right' ? '#4f46e5' : '#e5e7eb',
+                  color: occluderPosition === 'right' ? 'white' : '#374151',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+                onClick={() => setOccluderPosition(occluderPosition === 'right' ? null : 'right')}
+              >
+                Cover Right
+              </button>
+            </>
+          )}
+        </div>
+      </ControlRow>
 
       <ControlRow>
-        <Label>Esophoria</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Esophoria
+            <span style={{ color: '#f59e0b', marginLeft: '0.25rem', marginRight: '0.25rem' }}>→←</span>
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -532,7 +636,12 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Exophoria</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Exophoria
+            <span style={{ color: '#f59e0b', marginLeft: '0.25rem', marginRight: '0.25rem' }}>←→</span>
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -547,7 +656,12 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Hyperphoria</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Hyperphoria
+            <span style={{ color: '#f59e0b', marginLeft: '0.25rem', marginRight: '0.25rem' }}>↑</span>
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"
@@ -562,7 +676,12 @@ const DeviationControls = () => {
       </ControlRow>
 
       <ControlRow>
-        <Label>Hypophoria</Label>
+        <Label>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            Hypophoria
+            <span style={{ color: '#f59e0b', marginLeft: '0.25rem', marginRight: '0.25rem' }}>↓</span>
+          </span>
+        </Label>
         <SliderContainer>
           <Slider
             type="range"

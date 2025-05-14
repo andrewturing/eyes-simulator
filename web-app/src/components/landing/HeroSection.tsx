@@ -27,7 +27,7 @@ export default function HeroSection() {
           >
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-                Advanced
+                Liverpool
               </span>
               <span className="block mt-1 text-gray-900">Eye Simulator</span>
             </h1>

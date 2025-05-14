@@ -243,6 +243,36 @@ const InfoPanel = () => {
             </InfoBox>
           </Section>
           
+          {/* Deviation Types Explanation */}
+          <Section>
+            <SectionTitle>Types of Eye Deviations</SectionTitle>
+            <InfoBox>
+              <Text style={{ marginBottom: '0.75rem' }}>
+                <BoldText>Horizontal Deviations:</BoldText>
+              </Text>
+              <Text>
+                • <BoldText>Esotropia/Esophoria</BoldText>: Inward turning of the eye(s). Often called &quot;crossed eyes.&quot;
+              </Text>
+              <Text style={{ marginBottom: '0.75rem' }}>
+                • <BoldText>Exotropia/Exophoria</BoldText>: Outward turning of the eye(s). Sometimes called &quot;wall-eyed.&quot;
+              </Text>
+              
+              <Text style={{ marginBottom: '0.75rem' }}>
+                <BoldText>Vertical Deviations:</BoldText>
+              </Text>
+              <Text>
+                • <BoldText>Hypertropia/Hyperphoria</BoldText>: Upward deviation of one eye relative to the other.
+              </Text>
+              <Text style={{ marginBottom: '0.75rem' }}>
+                • <BoldText>Hypotropia/Hypophoria</BoldText>: Downward deviation of one eye relative to the other.
+              </Text>
+              
+              <Text style={{ marginBottom: '0.5rem' }}>
+                <BoldText>Clinical Testing:</BoldText> These deviations are tested using cover tests and measured in prism diopters (Δ). Use the occluder tool to reveal phorias, which only become apparent when binocular vision is disrupted.
+              </Text>
+            </InfoBox>
+          </Section>
+          
           {/* Legend */}
           <Section>
             <SectionTitle>Terminology</SectionTitle>
