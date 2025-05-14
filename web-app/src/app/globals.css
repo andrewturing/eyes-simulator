@@ -1,16 +1,15 @@
 @import "tailwindcss";
-@import "./theme.css";
 
 :root {
-  --background: var(--university-white);
-  --foreground: var(--university-black);
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-family);
-  --font-mono: var(--font-family);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,60 +22,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-family);
-  margin: 0;
-  padding: 0;
-  line-height: 1.5;
-}
-
-/* Modern reset and base styles */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  margin-top: 0;
-  font-weight: var(--font-weight-semibold);
-  color: var(--university-primary);
-}
-
-a {
-  color: var(--university-secondary);
-  text-decoration: none;
-  transition: color var(--transition-quick);
-}
-
-a:hover {
-  color: var(--university-accent);
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  background-color: var(--university-secondary);
-  color: var(--university-white);
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius-sm);
-  font-weight: var(--font-weight-medium);
-  transition: background-color var(--transition-quick);
-}
-
-button:hover {
-  background-color: #2980b9;
-}
-
-button.primary {
-  background-color: var(--university-primary);
-}
-
-button.primary:hover {
-  background-color: #1a2530;
-}
-
-button.accent {
-  background-color: var(--university-accent);
-}
-
-button.accent:hover {
-  background-color: #c0392b;
+  font-family: Arial, Helvetica, sans-serif;
 }

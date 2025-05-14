@@ -5,19 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Eyes Simulator - University Medical Education Tool",
+  title: "Eyes Simulator",
   description: "A medical education tool for eye disease simulation and analysis",
-  icons: {
-    icon: [
-      {
-        url: "/university-logo.svg",
-        type: "image/svg+xml",
-        sizes: "any"
-      }
-    ],
-    shortcut: "/university-logo.svg",
-    apple: "/university-logo.svg",
-  }
 };
 
 export default function RootLayout({
@@ -27,7 +16,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <head>
+        <script src="/debug.js" async></script>
+      </head>
+      <body className={inter.className}>
+        {children}
+      </body>
     </html>
   );
 }

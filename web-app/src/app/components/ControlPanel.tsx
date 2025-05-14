@@ -4,44 +4,44 @@ import useEyeStore, { EyeSide, PathologyType } from '../store/useEyeStore';
 import EyeMovementControl from './EyeMovementControl';
 
 const ControlContainer = styled.div`
-  background-color: var(--university-white);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-md);
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
   max-height: 100%;
 `;
 
 const TabGroup = styled.div`
   display: flex;
-  border-bottom: 1px solid var(--university-gray);
-  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1rem;
 `;
 
 const Tab = styled.button<{ active: boolean }>`
-  background: ${props => props.active ? 'var(--university-white)' : 'transparent'};
+  background: ${props => props.active ? '#fff' : 'transparent'};
   border: none;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 0.5rem 1rem;
   cursor: pointer;
-  font-weight: ${props => props.active ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)'};
-  border-bottom: ${props => props.active ? `2px solid var(--university-secondary)` : 'none'};
-  color: ${props => props.active ? 'var(--university-secondary)' : 'var(--university-dark-gray)'};
-  transition: all var(--transition-quick);
+  font-weight: ${props => props.active ? 'bold' : 'normal'};
+  border-bottom: ${props => props.active ? '2px solid #3b82f6' : 'none'};
+  color: ${props => props.active ? '#3b82f6' : '#333'};
+  transition: all 0.2s ease;
   
   &:hover {
-    background-color: var(--university-light-gray);
+    background-color: #eee;
   }
 `;
 
 const ControlGroup = styled.div`
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 1.5rem;
 `;
 
 const GroupTitle = styled.h3`
   font-size: 1rem;
-  font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--spacing-sm);
-  color: var(--university-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
 `;
 
 const ControlRow = styled.div`
@@ -54,7 +54,7 @@ const ControlRow = styled.div`
 const Label = styled.label`
   font-size: 0.875rem;
   margin-right: 1rem;
-  color: var(--university-dark-gray);
+  color: #555;
   flex: 1;
 `;
 
@@ -71,7 +71,7 @@ const Slider = styled.input`
 
 const Value = styled.span`
   font-size: 0.75rem;
-  color: var(--university-dark-gray);
+  color: #666;
   width: 2.5rem;
   text-align: center;
 `;
@@ -82,38 +82,38 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  background-color: var(--university-secondary);
+  background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: var(--border-radius-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
   cursor: pointer;
   font-size: 0.875rem;
-  transition: background-color var(--transition-quick);
+  transition: background-color 0.2s;
   
   &:hover {
-    background-color: #2980b9;
+    background-color: #2563eb;
   }
 
   &:disabled {
-    background-color: var(--university-gray);
+    background-color: #9ca3af;
     cursor: not-allowed;
   }
 `;
 
 const SecondaryButton = styled(Button)`
-  background-color: var(--university-dark-gray);
+  background-color: #6b7280;
 
   &:hover {
-    background-color: #3a4555;
+    background-color: #4b5563;
   }
 `;
 
 const ResetButton = styled(Button)`
-  background-color: var(--university-accent);
+  background-color: #ef4444;
 
   &:hover {
-    background-color: #c0392b;
+    background-color: #dc2626;
   }
 `;
 
@@ -127,23 +127,23 @@ const ColorPickerContainer = styled.div`
 const ColorInput = styled.input`
   width: 30px;
   height: 30px;
-  border: 1px solid var(--university-gray);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid #ddd;
+  border-radius: 4px;
   cursor: pointer;
 `;
 
 const Select = styled.select`
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--university-gray);
-  border-radius: var(--border-radius-sm);
-  background-color: var(--university-white);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
   flex: 2;
 `;
 
 const MirrorButton = styled.button`
   background-color: transparent;
-  border: 1px solid var(--university-gray);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid #ddd;
+  border-radius: 4px;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
   display: flex;
@@ -152,7 +152,7 @@ const MirrorButton = styled.button`
   font-size: 0.75rem;
   
   &:hover {
-    background-color: var(--university-light-gray);
+    background-color: #eee;
   }
 `;
 
@@ -169,7 +169,7 @@ const Checkbox = styled.div`
   
   label {
     font-size: 0.875rem;
-    color: var(--university-dark-gray);
+    color: #555;
     cursor: pointer;
   }
 `;
@@ -778,8 +778,8 @@ export default function ControlPanel() {
                 style={{ 
                   flex: 1, 
                   padding: '0.5rem', 
-                  borderRadius: 'var(--border-radius-sm)',
-                  border: '1px solid var(--university-gray)'
+                  borderRadius: '4px',
+                  border: '1px solid #ddd'
                 }}
                 placeholder="Enter a name for this configuration"
               />
@@ -818,7 +818,7 @@ export default function ControlPanel() {
               </ControlRow>
             </>
           ) : (
-            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--university-dark-gray)' }}>
+            <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
               No saved configurations found.
             </div>
           )}
