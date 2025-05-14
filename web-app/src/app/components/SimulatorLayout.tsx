@@ -3,10 +3,26 @@ import styled from '@emotion/styled';
 import ControlPanel from './ControlPanel';
 import InfoPanel from './InfoPanel';
 import dynamic from 'next/dynamic';
-import DatabaseSetupHelper from './DatabaseSetupHelper';
+import ViewToggle from './ViewToggle';
 
-// Dynamically import FaceModel with SSR disabled
+// Dynamically import models with SSR disabled
 const DynamicFaceModel = dynamic(() => import('./FaceModel'), { ssr: false });
+const DynamicHeadModel3D = dynamic(() => import('./3D/HeadModel3D'), { 
+  ssr: false,
+  loading: () => (
+    <div style={{ 
+      width: '100%', 
+      height: '600px', 
+      background: '#f0f0f0', 
+      borderRadius: '8px', 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center'
+    }}>
+      <div>Loading 3D Model...</div>
+    </div>
+  )
+});
 
 const Container = styled.div`
   display: flex;
@@ -199,8 +215,8 @@ const FooterLinks = styled.div`
 
 const SimulatorLayout = () => {
   const [activeMode, setActiveMode] = useState<'explore' | 'test'>('explore');
+  const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D');
   const [isMounted, setIsMounted] = useState(false);
-  const [showDbHelper, setShowDbHelper] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Wait until component is mounted to prevent hydration errors
@@ -215,13 +231,11 @@ const SimulatorLayout = () => {
           const data = await response.json();
           if (data.status !== 'success') {
             setConnectionError(data.message || 'Database connection error');
-            setShowDbHelper(true);
           }
         }
       } catch (error) {
         console.error('Error checking database:', error);
         setConnectionError('Unable to check database connection');
-        setShowDbHelper(true);
       }
     };
     
@@ -263,12 +277,29 @@ const SimulatorLayout = () => {
           </div>
         )}
         
-        {showDbHelper && <DatabaseSetupHelper />}
+        {/* View mode toggle for 2D/3D */}
+        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+        
+        {viewMode === '3D' && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            backgroundColor: '#eef2ff',
+            borderRadius: '0.375rem',
+            borderLeft: '4px solid #4f46e5',
+            color: '#4f46e5'
+          }}>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>
+              <strong>3D Mode:</strong> Use mouse to rotate view, scroll to zoom in/out. All control panel changes apply to the 3D model in real-time.
+            </p>
+          </div>
+        )}
         
         <SimulationContainer>
           <EyeSimulation>
-            {/* Only render FaceModel on the client */}
-            {isMounted ? <DynamicFaceModel /> : null}
+            {/* Render the appropriate model based on viewMode */}
+            {isMounted && viewMode === '2D' && <DynamicFaceModel />}
+            {isMounted && viewMode === '3D' && <DynamicHeadModel3D />}
           </EyeSimulation>
 
           <ControlsContainer>
@@ -326,12 +357,12 @@ const SimulatorLayout = () => {
                 <CardButton>View Guide</CardButton>
               </Card>
               <Card>
-                <h3>Strabismus Assessment</h3>
+                <h3>3D Eye Structures</h3>
                 <p>
-                  Detailed procedures for evaluating eye alignment and
-                  diagnosing strabismus.
+                  Explore the three-dimensional structure of the eye and understand 
+                  spatial relationships between different components.
                 </p>
-                <CardButton>View Guide</CardButton>
+                <CardButton onClick={() => setViewMode('3D')}>View in 3D</CardButton>
               </Card>
               <Card>
                 <h3>Treatment Options</h3>

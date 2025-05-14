@@ -34,7 +34,7 @@ export default function HeroSection() {
             
             <p className="mt-6 max-w-2xl mx-auto text-lg sm:text-xl text-gray-600 leading-relaxed">
               A cutting-edge medical education tool for ophthalmology students and professionals. 
-              Simulate various eye conditions and diseases in an interactive 3D environment.
+              Simulate various eye conditions and diseases in an interactive <span className="font-bold text-indigo-600">3D</span> environment.
             </p>
           </motion.div>
           
@@ -84,8 +84,8 @@ export default function HeroSection() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Interactive 3D Models</h3>
-              <p className="text-gray-600">Explore detailed 3D eye models with interactive controls for an immersive learning experience.</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Interactive 3D Models <span className="text-xs font-bold bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">NEW</span></h3>
+              <p className="text-gray-600">Explore detailed 3D eye models with rotatable views and interactive controls for a truly immersive learning experience.</p>
             </div>
             
             <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition duration-200">

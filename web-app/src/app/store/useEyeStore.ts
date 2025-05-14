@@ -455,15 +455,15 @@ const useEyeStore = create<EyeState>((set, get) => ({
         
         // Fallback to local storage if API call fails
         console.log('Falling back to local storage');
-        
-        // Get existing saved configurations
-        const existingConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
-        
-        // Add new configuration
-        existingConfigs[name] = stateToSave;
-        
-        // Save to local storage
-        localStorage.setItem('eyeConfigurations', JSON.stringify(existingConfigs));
+      
+      // Get existing saved configurations
+      const existingConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
+      
+      // Add new configuration
+      existingConfigs[name] = stateToSave;
+      
+      // Save to local storage
+      localStorage.setItem('eyeConfigurations', JSON.stringify(existingConfigs));
       });
     }
   },
@@ -482,22 +482,22 @@ const useEyeStore = create<EyeState>((set, get) => ({
           .then(data => {
             if (data.configuration && data.configuration.configuration) {
               const config = data.configuration.configuration;
-              
-              if (config) {
-                set({
-                  ...config,
-                  // Keep the current values for these properties
-                  enableBlinking: get().enableBlinking,
-                  blinkFrequency: get().blinkFrequency,
-                  movementMode: get().movementMode,
-                  dominantEye: get().dominantEye,
-                  activeTool: get().activeTool,
-                  occluderPosition: get().occluderPosition,
-                  prismValue: get().prismValue,
-                  prismAxis: get().prismAxis,
-                  currentTest: get().currentTest
-                });
-              }
+      
+      if (config) {
+        set({
+          ...config,
+          // Keep the current values for these properties
+          enableBlinking: get().enableBlinking,
+          blinkFrequency: get().blinkFrequency,
+          movementMode: get().movementMode,
+          dominantEye: get().dominantEye,
+          activeTool: get().activeTool,
+          occluderPosition: get().occluderPosition,
+          prismValue: get().prismValue,
+          prismAxis: get().prismAxis,
+          currentTest: get().currentTest
+        });
+      }
             }
           })
           .catch(error => {
