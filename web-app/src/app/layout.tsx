@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Advanced Eye Simulator",
+  title: "Eyes Simulator",
   description: "A medical education tool for eye disease simulation and analysis",
 };
 

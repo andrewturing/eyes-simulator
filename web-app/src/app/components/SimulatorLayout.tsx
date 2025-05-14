@@ -209,7 +209,7 @@ const SimulatorLayout = () => {
     <Container>
       <Header>
         <HeaderContent>
-          <Title>Advanced Eye Simulator</Title>
+          <Title>Eyes Simulator</Title>
           <ModeToggle>
             <ModeButton 
               active={activeMode === 'explore'} 
