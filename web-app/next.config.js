@@ -12,6 +12,13 @@ const nextConfig = {
   // Allow image optimization for specified domains
   images: {
     domains: ['placehold.co'],
+  },
+  
+  // Expose a limited set of environment variables to the browser
+  env: {
+    MONGODB_HOST: process.env.MONGODB_HOST,
+    MONGODB_PORT: process.env.MONGODB_PORT,
+    MONGODB_DATABASE: process.env.MONGODB_DATABASE
   }
 };
 

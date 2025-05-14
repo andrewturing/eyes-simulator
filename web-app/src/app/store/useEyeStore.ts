@@ -5,6 +5,15 @@ export type TestType = 'cover-uncover' | 'alternate-cover' | 'alternate-cover-pr
 export type MovementMode = 'iris_and_pupil' | 'iris_only' | 'pupil_only';
 export type PathologyType = 'normal' | 'conjunctivitis' | 'jaundice' | 'subconjunctival_hemorrhage' | 'arcus' | 'cataract';
 
+// Add this type
+export interface ConfigItem {
+  _id: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isLocal?: boolean;
+}
+
 interface EyeState {
   // Eye parameters
   pupilSize: { left: number; right: number };
@@ -90,8 +99,8 @@ interface EyeState {
   resetEyes: () => void;
   mirrorEyeSettings: (fromEye: EyeSide) => void;
   saveConfiguration: (name: string) => void;
-  loadConfiguration: (name: string) => void;
-  getSavedConfigurations: () => string[];
+  loadConfiguration: (nameOrId: string) => void;
+  getSavedConfigurations: () => Promise<ConfigItem[]>;
 }
 
 const DEFAULT_PUPIL_SIZE = 4;
@@ -423,46 +432,207 @@ const useEyeStore = create<EyeState>((set, get) => ({
         hypophoria: currentState.hypophoria
       };
       
-      // Get existing saved configurations
-      const existingConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
-      
-      // Add new configuration
-      existingConfigs[name] = stateToSave;
-      
-      // Save to local storage
-      localStorage.setItem('eyeConfigurations', JSON.stringify(existingConfigs));
+      // First try to save to the database via API
+      fetch('/api/configurations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name,
+          configuration: stateToSave
+        })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to save configuration to server');
+        }
+        return response.json();
+      })
+      .catch(error => {
+        console.error('Error saving configuration to server:', error);
+        
+        // Fallback to local storage if API call fails
+        console.log('Falling back to local storage');
+        
+        // Get existing saved configurations
+        const existingConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
+        
+        // Add new configuration
+        existingConfigs[name] = stateToSave;
+        
+        // Save to local storage
+        localStorage.setItem('eyeConfigurations', JSON.stringify(existingConfigs));
+      });
     }
   },
   
-  loadConfiguration: (name) => {
+  loadConfiguration: (nameOrId) => {
     if (typeof window !== 'undefined') {
-      const savedConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
-      const config = savedConfigs[name];
-      
-      if (config) {
-        set({
-          ...config,
-          // Keep the current values for these properties
-          enableBlinking: get().enableBlinking,
-          blinkFrequency: get().blinkFrequency,
-          movementMode: get().movementMode,
-          dominantEye: get().dominantEye,
-          activeTool: get().activeTool,
-          occluderPosition: get().occluderPosition,
-          prismValue: get().prismValue,
-          prismAxis: get().prismAxis,
-          currentTest: get().currentTest
-        });
+      // If it looks like an ObjectId, load directly by ID
+      if (/^[0-9a-fA-F]{24}$/.test(nameOrId)) {
+        fetch(`/api/configurations/${nameOrId}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Failed to fetch configuration');
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.configuration && data.configuration.configuration) {
+              const config = data.configuration.configuration;
+              
+              if (config) {
+                set({
+                  ...config,
+                  // Keep the current values for these properties
+                  enableBlinking: get().enableBlinking,
+                  blinkFrequency: get().blinkFrequency,
+                  movementMode: get().movementMode,
+                  dominantEye: get().dominantEye,
+                  activeTool: get().activeTool,
+                  occluderPosition: get().occluderPosition,
+                  prismValue: get().prismValue,
+                  prismAxis: get().prismAxis,
+                  currentTest: get().currentTest
+                });
+              }
+            }
+          })
+          .catch(error => {
+            console.error('Error loading configuration by ID:', error);
+          });
+        return;
       }
+      
+      // Otherwise, treat it as a name and try to look it up
+      // First try to load from API
+      fetch(`/api/configurations`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch configurations');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Find the configuration with the matching name
+          const config = data.configurations.find((c: { name: string, _id: string }) => c.name === nameOrId);
+          
+          if (config) {
+            // Fetch the specific configuration
+            return fetch(`/api/configurations/${config._id}`);
+          } else {
+            throw new Error('Configuration not found');
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch configuration details');
+          }
+          return response.json();
+        })
+        .then(data => {
+          const config = data.configuration.configuration;
+          
+          if (config) {
+            set({
+              ...config,
+              // Keep the current values for these properties
+              enableBlinking: get().enableBlinking,
+              blinkFrequency: get().blinkFrequency,
+              movementMode: get().movementMode,
+              dominantEye: get().dominantEye,
+              activeTool: get().activeTool,
+              occluderPosition: get().occluderPosition,
+              prismValue: get().prismValue,
+              prismAxis: get().prismAxis,
+              currentTest: get().currentTest
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Error loading configuration from server:', error);
+          
+          // Fallback to local storage
+          console.log('Falling back to local storage');
+          const savedConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
+          const config = savedConfigs[nameOrId];
+          
+          if (config) {
+            set({
+              ...config,
+              // Keep the current values for these properties
+              enableBlinking: get().enableBlinking,
+              blinkFrequency: get().blinkFrequency,
+              movementMode: get().movementMode,
+              dominantEye: get().dominantEye,
+              activeTool: get().activeTool,
+              occluderPosition: get().occluderPosition,
+              prismValue: get().prismValue,
+              prismAxis: get().prismAxis,
+              currentTest: get().currentTest
+            });
+          }
+        });
     }
   },
   
   getSavedConfigurations: () => {
     if (typeof window !== 'undefined') {
-      const savedConfigs = JSON.parse(localStorage.getItem('eyeConfigurations') || '{}');
-      return Object.keys(savedConfigs);
+      console.log('Attempting to get saved configurations');
+      
+      // First try to get from API
+      return fetch('/api/configurations', {
+        credentials: 'include'
+      })
+        .then(response => {
+          console.log('API response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch configurations: ${response.status} ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Configurations data from API:', data);
+          if (!data.configurations) {
+            console.warn('API response missing configurations array:', data);
+            return [];
+          }
+          
+          // Return the full configuration data
+          return data.configurations;
+        })
+        .catch(error => {
+          console.error('Error fetching configurations from server:', error);
+          
+          // Fallback to local storage
+          console.log('Falling back to local storage');
+          try {
+            const savedConfigsStr = localStorage.getItem('eyeConfigurations');
+            if (!savedConfigsStr) {
+              console.log('No configurations found in local storage');
+              return [];
+            }
+            
+            const savedConfigs = JSON.parse(savedConfigsStr);
+            console.log('Loaded configurations from localStorage:', savedConfigs);
+            
+            // Format local storage data to match API format
+            return Object.entries(savedConfigs).map(([name]) => ({
+              name,
+              _id: name, // Use name as ID for local configs
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              isLocal: true // Flag to identify local configs
+            }));
+          } catch (localStorageError) {
+            console.error('Error accessing localStorage:', localStorageError);
+            return [];
+          }
+        });
     }
-    return [];
+    return Promise.resolve([]);
   },
     
   resetEyes: () => 

@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import ControlPanel from './ControlPanel';
 import InfoPanel from './InfoPanel';
 import dynamic from 'next/dynamic';
+import DatabaseSetupHelper from './DatabaseSetupHelper';
 
 // Dynamically import FaceModel with SSR disabled
 const DynamicFaceModel = dynamic(() => import('./FaceModel'), { ssr: false });
@@ -199,10 +200,32 @@ const FooterLinks = styled.div`
 const SimulatorLayout = () => {
   const [activeMode, setActiveMode] = useState<'explore' | 'test'>('explore');
   const [isMounted, setIsMounted] = useState(false);
+  const [showDbHelper, setShowDbHelper] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Wait until component is mounted to prevent hydration errors
   useEffect(() => {
     setIsMounted(true);
+    
+    // Check for database connection issues
+    const checkDatabaseConnection = async () => {
+      try {
+        const response = await fetch('/api/check-db');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status !== 'success') {
+            setConnectionError(data.message || 'Database connection error');
+            setShowDbHelper(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking database:', error);
+        setConnectionError('Unable to check database connection');
+        setShowDbHelper(true);
+      }
+    };
+    
+    checkDatabaseConnection();
   }, []);
 
   return (
@@ -228,6 +251,20 @@ const SimulatorLayout = () => {
       </Header>
 
       <Main>
+        {connectionError && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            backgroundColor: '#fee2e2',
+            borderRadius: '0.375rem',
+            color: '#b91c1c'
+          }}>
+            <p>{connectionError}</p>
+          </div>
+        )}
+        
+        {showDbHelper && <DatabaseSetupHelper />}
+        
         <SimulationContainer>
           <EyeSimulation>
             {/* Only render FaceModel on the client */}

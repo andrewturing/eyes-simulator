@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import useEyeStore, { EyeSide, PathologyType } from '../store/useEyeStore';
+import type { ConfigItem } from '../store/useEyeStore';
 import EyeMovementControl from './EyeMovementControl';
 
 const ControlContainer = styled.div`
@@ -172,6 +173,62 @@ const Checkbox = styled.div`
     color: #555;
     cursor: pointer;
   }
+`;
+
+const DeleteButton = styled(Button)`
+  background-color: #ef4444;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+
+  &:hover {
+    background-color: #dc2626;
+  }
+`;
+
+const ConfigList = styled.div`
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+`;
+
+const ConfigItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-bottom: 1px solid #eee;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ConfigInfo = styled.div`
+  flex: 1;
+`;
+
+const ConfigName = styled.div`
+  font-weight: 500;
+`;
+
+const ConfigDate = styled.div`
+  font-size: 0.75rem;
+  color: #666;
+`;
+
+const ConfigActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const SortSelect = styled.select`
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-left: auto;
 `;
 
 interface EyeControlsProps {
@@ -662,33 +719,172 @@ export default function ControlPanel() {
   } = useEyeStore();
   const [activeTab, setActiveTab] = useState('eyes');
   const [configName, setConfigName] = useState('');
-  const [savedConfigs, setSavedConfigs] = useState<string[]>([]);
-  const [selectedConfig, setSelectedConfig] = useState('');
+  const [savedConfigs, setSavedConfigs] = useState<ConfigItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [sortOrder, setSortOrder] = useState<'name' | 'newest' | 'oldest'>('newest');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
 
   // Load saved configurations on mount
   useEffect(() => {
+    loadConfigurations();
+  }, []);
+
+  const loadConfigurations = async () => {
     if (typeof window !== 'undefined') {
-      const configs = getSavedConfigurations();
-      setSavedConfigs(configs);
-      if (configs.length > 0) {
-        setSelectedConfig(configs[0]);
+      setIsLoading(true);
+      let dbCheckPassed = false;
+      
+      // First check if the auth and database connection are working
+      try {
+        const checkResponse = await fetch('/api/check-db');
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          console.log('System status:', checkData);
+          
+          if (checkData.authentication?.status !== 'authenticated') {
+            setStatusMessage(`Authentication error: ${checkData.authentication?.error || 'Not authenticated'}`);
+            setIsLoading(false);
+            return;
+          }
+          
+          if (checkData.status !== 'success') {
+            setStatusMessage(`Database connection error: ${checkData.error || 'Connection failed'}`);
+            setIsLoading(false);
+            return;
+          }
+          
+          dbCheckPassed = true;
+        } else {
+          console.error('Database check failed:', checkResponse.status, checkResponse.statusText);
+          setStatusMessage(`Database check failed: ${checkResponse.status} ${checkResponse.statusText}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking system status:', error);
+        setStatusMessage(`System check error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If database check passed, continue to load configurations
+      if (dbCheckPassed) {
+        try {
+          console.log('Database check passed, loading configurations...');
+          const configs = await getSavedConfigurations();
+          console.log('Loaded configurations:', configs);
+          setSavedConfigs(Array.isArray(configs) ? configs : []);
+          
+          if (!Array.isArray(configs) || configs.length === 0) {
+            setStatusMessage('No saved configurations found. Create your first one!');
+          } else {
+            setStatusMessage('');
+          }
+        } catch (error) {
+          console.error('Error loading configurations:', error);
+          setStatusMessage(`Failed to load saved configurations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+          setIsLoading(false);
+        }
       }
     }
-  }, [getSavedConfigurations]);
+  };
 
   const handleSaveConfig = () => {
     if (configName.trim()) {
+      setIsLoading(true);
+      setStatusMessage('Saving configuration...');
+      
+      // Save the configuration
       saveConfiguration(configName);
+      
+      // Clear the input field
       setConfigName('');
-      setSavedConfigs(getSavedConfigurations());
+      
+      // Refresh the saved configurations list after a short delay
+      setTimeout(() => {
+        loadConfigurations().then(() => {
+          setStatusMessage('Configuration saved successfully!');
+          // Clear success message after a delay
+          setTimeout(() => setStatusMessage(''), 3000);
+        });
+      }, 800);
     }
   };
 
-  const handleLoadConfig = () => {
-    if (selectedConfig) {
-      loadConfiguration(selectedConfig);
+  const handleDeleteConfig = async (configId: string) => {
+    // If this is a confirmation request
+    if (deleteConfirmation !== configId) {
+      setDeleteConfirmation(configId);
+      return;
     }
+    
+    setIsLoading(true);
+    setStatusMessage('Deleting configuration...');
+    
+    try {
+      const response = await fetch(`/api/configurations/${configId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        setStatusMessage('Configuration deleted successfully!');
+        await loadConfigurations();
+      } else {
+        throw new Error('Failed to delete configuration');
+      }
+    } catch (error) {
+      console.error('Error deleting configuration:', error);
+      setStatusMessage('Failed to delete configuration');
+    }
+    
+    setDeleteConfirmation(null);
+    setIsLoading(false);
+    setTimeout(() => setStatusMessage(''), 3000);
   };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation(null);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Unknown date';
+    
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) 
+      ? 'Invalid date' 
+      : date.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+  };
+
+  const sortConfigurations = (configs: ConfigItem[]) => {
+    if (!configs || configs.length === 0) return [];
+    
+    return [...configs].sort((a, b) => {
+      switch (sortOrder) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'newest':
+          return new Date(b.updatedAt || b.createdAt || '').getTime() - 
+                 new Date(a.updatedAt || a.createdAt || '').getTime();
+        case 'oldest':
+          return new Date(a.updatedAt || a.createdAt || '').getTime() - 
+                 new Date(b.updatedAt || b.createdAt || '').getTime();
+        default:
+          return 0;
+      }
+    });
+  };
+
+  // Sort the configurations
+  const sortedConfigs = sortConfigurations(savedConfigs);
 
   return (
     <ControlContainer>
@@ -782,44 +978,111 @@ export default function ControlPanel() {
                   border: '1px solid #ddd'
                 }}
                 placeholder="Enter a name for this configuration"
+                disabled={isLoading}
               />
               <Button 
                 onClick={handleSaveConfig}
-                disabled={!configName.trim()}
+                disabled={!configName.trim() || isLoading}
               >
-                Save
+                {isLoading ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </ControlRow>
           
-          <GroupTitle>Load Configuration</GroupTitle>
-          {savedConfigs.length > 0 ? (
-            <>
-              <ControlRow>
-                <Label>Select Configuration</Label>
-                <Select
-                  value={selectedConfig}
-                  onChange={(e) => setSelectedConfig(e.target.value)}
-                  style={{ flex: 2 }}
-                >
-                  {savedConfigs.map(config => (
-                    <option key={config} value={config}>
-                      {config}
-                    </option>
-                  ))}
-                </Select>
-              </ControlRow>
-              <ControlRow>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-                  <Button onClick={handleLoadConfig}>
-                    Load Configuration
-                  </Button>
-                </div>
-              </ControlRow>
-            </>
+          <GroupTitle>
+            Saved Configurations
+            <SortSelect 
+              value={sortOrder} 
+              onChange={(e) => setSortOrder(e.target.value as 'name' | 'newest' | 'oldest')}
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="name">By Name</option>
+            </SortSelect>
+          </GroupTitle>
+          
+          {isLoading && savedConfigs.length === 0 ? (
+            <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+              Loading configurations...
+            </div>
+          ) : sortedConfigs.length > 0 ? (
+            <ConfigList>
+              {sortedConfigs.map(config => (
+                <ConfigItem key={config._id}>
+                  <ConfigInfo>
+                    <ConfigName>{config.name}</ConfigName>
+                    <ConfigDate>
+                      {config.updatedAt 
+                        ? `Updated: ${formatDate(config.updatedAt)}`
+                        : config.createdAt 
+                          ? `Created: ${formatDate(config.createdAt)}`
+                          : 'No date information'}
+                    </ConfigDate>
+                  </ConfigInfo>
+                  <ConfigActions>
+                    <Button 
+                      onClick={() => {
+                        loadConfiguration(config._id);
+                        setStatusMessage('Configuration loaded successfully!');
+                        setTimeout(() => setStatusMessage(''), 3000);
+                      }}
+                      disabled={isLoading}
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    >
+                      Load
+                    </Button>
+                    {deleteConfirmation === config._id ? (
+                      <>
+                        <DeleteButton 
+                          onClick={() => handleDeleteConfig(config._id)}
+                          disabled={isLoading}
+                        >
+                          Confirm
+                        </DeleteButton>
+                        <Button 
+                          onClick={cancelDelete}
+                          disabled={isLoading}
+                          style={{ 
+                            padding: '0.25rem 0.5rem', 
+                            fontSize: '0.75rem',
+                            backgroundColor: '#6b7280'
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <DeleteButton 
+                        onClick={() => handleDeleteConfig(config._id)}
+                        disabled={isLoading}
+                      >
+                        Delete
+                      </DeleteButton>
+                    )}
+                  </ConfigActions>
+                </ConfigItem>
+              ))}
+            </ConfigList>
           ) : (
             <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
               No saved configurations found.
+            </div>
+          )}
+          
+          {statusMessage && (
+            <div style={{ 
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: statusMessage.includes('failed') || statusMessage.includes('Failed') 
+                ? '#fee2e2' 
+                : '#ecfdf5',
+              borderRadius: '4px',
+              color: statusMessage.includes('failed') || statusMessage.includes('Failed')
+                ? '#b91c1c' 
+                : '#065f46',
+              textAlign: 'center'
+            }}>
+              {statusMessage}
             </div>
           )}
         </ControlGroup>
