@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import ControlPanel from './ControlPanel';
 import InfoPanel from './InfoPanel';
 import dynamic from 'next/dynamic';
+import UniversityLogo from './UniversityLogo';
 
 // Dynamically import FaceModel with SSR disabled
 const DynamicFaceModel = dynamic(() => import('./FaceModel'), { ssr: false });
@@ -11,62 +12,69 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f7f9fc;
+  background-color: var(--background-alt);
 `;
 
 const Header = styled.header`
-  background-color: #2c3e50;
+  background-color: var(--university-primary);
   color: white;
   padding: 1rem 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 `;
 
 const HeaderContent = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--spacing-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
 `;
 
+const LogoContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+`;
+
 const Title = styled.h1`
-  font-size: 1.8rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
   margin: 0;
+  color: white;
 `;
 
 const ModeToggle = styled.div`
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
 `;
 
 const ModeButton = styled.button<{ active: boolean }>`
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
   border: none;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: ${(props: { active: boolean }) => props.active ? '#3498db' : 'rgba(255, 255, 255, 0.2)'};
+  transition: all var(--transition-quick);
+  background-color: ${(props: { active: boolean }) => props.active ? 'var(--university-secondary)' : 'rgba(255, 255, 255, 0.2)'};
   color: white;
   
   &:hover {
-    background-color: ${(props: { active: boolean }) => props.active ? '#3498db' : 'rgba(255, 255, 255, 0.3)'};
+    background-color: ${(props: { active: boolean }) => props.active ? 'var(--university-secondary)' : 'rgba(255, 255, 255, 0.3)'};
   }
 `;
 
 const Main = styled.main`
   flex-grow: 1;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: var(--spacing-xl) var(--spacing-md);
 `;
 
 const SimulationContainer = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: var(--spacing-xl);
   
   @media (min-width: 1024px) {
     grid-template-columns: 2fr 1fr;
@@ -74,9 +82,9 @@ const SimulationContainer = styled.div`
 `;
 
 const EyeSimulation = styled.div`
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: var(--university-white);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
   height: 600px;
 `;
@@ -84,29 +92,29 @@ const EyeSimulation = styled.div`
 const ControlsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--spacing-lg);
 `;
 
 const ContentSection = styled.section`
-  margin-top: 2rem;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
+  margin-top: var(--spacing-xl);
+  background-color: var(--university-white);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
 `;
 
 const SectionTitle = styled.h2`
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin-top: 0;
-  margin-bottom: 1rem;
-  color: #2c3e50;
+  margin-bottom: var(--spacing-md);
+  color: var(--university-primary);
 `;
 
 const CardsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: var(--spacing-md);
   
   @media (min-width: 768px) {
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -114,21 +122,28 @@ const CardsGrid = styled.div`
 `;
 
 const Card = styled.div`
-  border: 1px solid #e1e4e8;
-  border-radius: 0.5rem;
-  padding: 1.25rem;
+  border: 1px solid var(--university-gray);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  transition: transform var(--transition-default), box-shadow var(--transition-default);
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
   
   h3 {
     font-size: 1.1rem;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--university-primary);
   }
   
   p {
     font-size: 0.9rem;
-    color: #4a5568;
-    margin-bottom: 1rem;
+    color: var(--university-dark-gray);
+    margin-bottom: var(--spacing-md);
   }
 `;
 
@@ -139,15 +154,15 @@ interface CardButtonProps {
 const CardButton = styled.button<CardButtonProps>`
   display: block;
   width: 100%;
-  padding: 0.5rem 0;
+  padding: var(--spacing-sm) 0;
   text-align: center;
-  border-radius: 0.25rem;
-  background-color: ${(props: CardButtonProps) => props.color || '#f1f5f9'};
-  color: ${(props: CardButtonProps) => props.color ? 'white' : '#475569'};
-  font-weight: 500;
+  border-radius: var(--border-radius-sm);
+  background-color: ${(props: CardButtonProps) => props.color || 'var(--university-light-gray)'};
+  color: ${(props: CardButtonProps) => props.color ? 'white' : 'var(--university-dark-gray)'};
+  font-weight: var(--font-weight-medium);
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-quick);
   
   &:hover {
     opacity: 0.9;
@@ -155,43 +170,49 @@ const CardButton = styled.button<CardButtonProps>`
 `;
 
 const Footer = styled.footer`
-  background-color: white;
-  border-top: 1px solid #e5e7eb;
-  padding: 1.5rem 0;
+  background-color: var(--university-white);
+  border-top: 1px solid var(--university-gray);
+  padding: var(--spacing-lg) 0;
 `;
 
 const FooterContent = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 var(--spacing-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
   
   @media (max-width: 640px) {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-md);
     text-align: center;
   }
 `;
 
+const FooterLogoContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+`;
+
 const Copyright = styled.div`
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--university-dark-gray);
 `;
 
 const FooterLinks = styled.div`
   display: flex;
-  gap: 1.5rem;
+  gap: var(--spacing-lg);
   
   a {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--university-dark-gray);
     text-decoration: none;
-    transition: color 0.2s ease;
+    transition: color var(--transition-quick);
     
     &:hover {
-      color: #1f2937;
+      color: var(--university-secondary);
     }
   }
 `;
@@ -209,7 +230,10 @@ const SimulatorLayout = () => {
     <Container>
       <Header>
         <HeaderContent>
-          <Title>Eyes Simulator</Title>
+          <LogoContainer>
+            <UniversityLogo width={60} height={60} />
+            <Title>Eyes Simulator</Title>
+          </LogoContainer>
           <ModeToggle>
             <ModeButton 
               active={activeMode === 'explore'} 
@@ -249,75 +273,62 @@ const SimulatorLayout = () => {
             <SectionTitle>Test Your Knowledge</SectionTitle>
             <CardsGrid>
               <Card>
-                <h3>Patient Scenario 1</h3>
-                <p>
-                  A 7-year-old child with complaints of eye strain while reading.
-                  No previous history of vision problems.
-                </p>
-                <CardButton color="#3498db">Examine Patient</CardButton>
+                <h3>Strabismus Identification</h3>
+                <p>Identify different types of strabismus and their characteristics.</p>
+                <CardButton color="var(--university-secondary)">Start Test</CardButton>
               </Card>
               <Card>
-                <h3>Patient Scenario 2</h3>
-                <p>
-                  A 45-year-old adult reporting double vision that worsens throughout the day.
-                  Onset was 2 months ago.
-                </p>
-                <CardButton color="#3498db">Examine Patient</CardButton>
+                <h3>Eye Movement Disorders</h3>
+                <p>Test your knowledge of different eye movement disorders.</p>
+                <CardButton color="var(--university-secondary)">Start Test</CardButton>
               </Card>
               <Card>
-                <h3>Patient Scenario 3</h3>
-                <p>
-                  A 12-year-old with a history of strabismus surgery, now experiencing
-                  increasing eye turn after 3 years of stability.
-                </p>
-                <CardButton color="#3498db">Examine Patient</CardButton>
+                <h3>Clinical Cases</h3>
+                <p>Analyze real-world clinical cases and provide your diagnosis.</p>
+                <CardButton color="var(--university-secondary)">View Cases</CardButton>
               </Card>
             </CardsGrid>
           </ContentSection>
         )}
 
-        {activeMode === 'explore' && (
-          <ContentSection>
-            <SectionTitle>Learning Resources</SectionTitle>
-            <CardsGrid>
-              <Card>
-                <h3>Basic Eye Anatomy</h3>
-                <p>
-                  Learn about the structures of the eye and how they work
-                  together to provide vision.
-                </p>
-                <CardButton>View Guide</CardButton>
-              </Card>
-              <Card>
-                <h3>Strabismus Assessment</h3>
-                <p>
-                  Detailed procedures for evaluating eye alignment and
-                  diagnosing strabismus.
-                </p>
-                <CardButton>View Guide</CardButton>
-              </Card>
-              <Card>
-                <h3>Treatment Options</h3>
-                <p>
-                  Overview of treatment approaches for various types of
-                  strabismus conditions.
-                </p>
-                <CardButton>View Guide</CardButton>
-              </Card>
-            </CardsGrid>
-          </ContentSection>
-        )}
+        <ContentSection>
+          <SectionTitle>Learning Resources</SectionTitle>
+          <CardsGrid>
+            <Card>
+              <h3>Anatomy of the Eye</h3>
+              <p>Learn about the structure and function of the human eye.</p>
+              <CardButton>View Resource</CardButton>
+            </Card>
+            <Card>
+              <h3>Common Eye Disorders</h3>
+              <p>Explore common eye disorders and their clinical presentations.</p>
+              <CardButton>View Resource</CardButton>
+            </Card>
+            <Card>
+              <h3>Clinical Examination</h3>
+              <p>Learn techniques for clinical examination of eye movements.</p>
+              <CardButton>View Resource</CardButton>
+            </Card>
+            <Card>
+              <h3>Treatment Options</h3>
+              <p>Explore treatment options for various eye movement disorders.</p>
+              <CardButton>View Resource</CardButton>
+            </Card>
+          </CardsGrid>
+        </ContentSection>
       </Main>
 
       <Footer>
         <FooterContent>
-          <Copyright>
-            &copy; {new Date().getFullYear()} Advanced Eye Simulator. For medical education only.
-          </Copyright>
+          <FooterLogoContainer>
+            <UniversityLogo width={40} height={40} />
+            <Copyright>© {new Date().getFullYear()} University Medical School. All rights reserved.</Copyright>
+          </FooterLogoContainer>
           <FooterLinks>
             <a href="#">About</a>
-            <a href="#">Help</a>
             <a href="#">Contact</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Use</a>
           </FooterLinks>
         </FooterContent>
       </Footer>

@@ -3,10 +3,10 @@ import styled from '@emotion/styled';
 import useEyeStore from '../store/useEyeStore';
 
 const Container = styled.div`
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
+  background-color: var(--university-white);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
   width: 100%;
 `;
 
@@ -14,31 +14,31 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 `;
 
 const Title = styled.h2`
   font-size: 1.4rem;
-  font-weight: 600;
-  color: #2c3e50;
+  font-weight: var(--font-weight-semibold);
+  color: var(--university-primary);
   margin: 0;
 `;
 
 const ToggleButton = styled.button`
   background: none;
   border: none;
-  color: #6b7280;
+  color: var(--university-dark-gray);
   font-size: 0.875rem;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--transition-quick);
   
   &:hover {
-    color: #1f2937;
+    color: var(--university-secondary);
   }
 `;
 
 const Section = styled.div`
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
   
   &:last-child {
     margin-bottom: 0;
@@ -47,28 +47,34 @@ const Section = styled.div`
 
 const SectionTitle = styled.h3`
   font-size: 1.1rem;
-  font-weight: 500;
-  margin-bottom: 0.75rem;
-  color: #2c3e50;
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--spacing-sm);
+  color: var(--university-primary);
 `;
 
 const Text = styled.p`
   font-size: 0.9rem;
-  color: #4b5563;
-  margin-bottom: 0.75rem;
+  color: var(--university-dark-gray);
+  margin-bottom: var(--spacing-sm);
   line-height: 1.5;
 `;
 
 const ConditionList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
 `;
 
 const ConditionCard = styled.div`
-  background-color: #f9fafb;
-  border-radius: 0.375rem;
-  padding: 0.75rem;
+  background-color: var(--university-light-gray);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  transition: transform var(--transition-default), box-shadow var(--transition-default);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
 `;
 
 const ConditionHeader = styled.div`
@@ -79,8 +85,8 @@ const ConditionHeader = styled.div`
 `;
 
 const ConditionName = styled.span`
-  font-weight: 500;
-  color: #1f2937;
+  font-weight: var(--font-weight-medium);
+  color: var(--university-primary);
 `;
 
 interface BadgeProps {
@@ -89,33 +95,34 @@ interface BadgeProps {
 
 const Badge = styled.span<BadgeProps>`
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;
   background-color: ${(props: BadgeProps) => props.type === 'tropia' ? '#fee2e2' : '#fef3c7'};
-  color: ${(props: BadgeProps) => props.type === 'tropia' ? '#b91c1c' : '#b45309'};
+  color: ${(props: BadgeProps) => props.type === 'tropia' ? 'var(--university-accent)' : '#b45309'};
 `;
 
 const ConditionDescription = styled.p`
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--university-dark-gray);
   margin: 0;
 `;
 
 const InfoBox = styled.div`
-  background-color: #eff6ff;
-  border-radius: 0.375rem;
-  padding: 1rem;
+  background-color: #e6f0fa;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  border-left: 3px solid var(--university-secondary);
 `;
 
 const BoldText = styled.span`
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 `;
 
 const LegendGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
   font-size: 0.875rem;
 `;
 
@@ -133,7 +140,7 @@ const ColorDot = styled.div<ColorDotProps>`
   height: 0.75rem;
   background-color: ${(props: ColorDotProps) => props.color};
   border-radius: 50%;
-  margin-right: 0.5rem;
+  margin-right: var(--spacing-xs);
 `;
 
 const InfoPanel = () => {
