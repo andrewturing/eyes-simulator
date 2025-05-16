@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import useEyeStore, { EyeSide, PathologyType } from '../store/useEyeStore';
 import styled from '@emotion/styled';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Styled components for the face and eyes
 const FaceContainer = styled.div`
@@ -348,14 +348,21 @@ const TearDrop = styled.div<{
   filter: drop-shadow(0 0 1px rgba(200, 230, 255, 0.8));
 `;
 
-const Occluder = styled.div<{ side: EyeSide }>`
+const Occluder = styled.div<{ side: EyeSide; draggable: boolean; isActive: boolean }>`
   position: absolute;
   width: 140px;
   height: 140px;
   background-color: #333;
   border-radius: 5px;
-  opacity: 0.8;
+  opacity: ${props => props.isActive ? 0.9 : 0.8};
   z-index: 10;
+  cursor: ${props => props.draggable ? 'grab' : 'default'};
+  box-shadow: ${props => props.isActive ? '0 0 15px rgba(255, 255, 255, 0.5)' : 'none'};
+  transition: box-shadow 0.2s, opacity 0.2s;
+  
+  &:active {
+    cursor: ${props => props.draggable ? 'grabbing' : 'default'};
+  }
 `;
 
 const DominantIndicator = styled.div`
@@ -368,7 +375,7 @@ const DominantIndicator = styled.div`
   left: 60px;
 `;
 
-const TargetStick = styled.div<{ visible: boolean }>`
+const TargetStick = styled.div<{ visible: boolean; draggable: boolean; isActive: boolean }>`
   position: absolute;
   width: 10px;
   height: 600px;
@@ -380,6 +387,13 @@ const TargetStick = styled.div<{ visible: boolean }>`
   transform: translate(-50%, -50%);
   z-index: 20;
   display: ${(props: { visible: boolean }) => props.visible ? 'block' : 'none'};
+  cursor: ${props => props.draggable ? 'grab' : 'default'};
+  box-shadow: ${props => props.isActive ? '0 0 15px rgba(240, 86, 88, 0.5)' : 'none'};
+  transition: box-shadow 0.2s;
+  
+  &:active {
+    cursor: ${props => props.draggable ? 'grabbing' : 'default'};
+  }
   
   &::before {
     content: '';
@@ -405,7 +419,7 @@ const TargetStick = styled.div<{ visible: boolean }>`
   }
 `;
 
-const Prism = styled.div<{ visible: boolean; axis: number }>`
+const Prism = styled.div<{ visible: boolean; axis: number; draggable: boolean; isActive: boolean }>`
   position: absolute;
   width: 150px;
   height: 150px;
@@ -414,6 +428,43 @@ const Prism = styled.div<{ visible: boolean; axis: number }>`
   clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
   z-index: 15;
   display: ${(props: { visible: boolean }) => props.visible ? 'block' : 'none'};
+  cursor: ${props => props.draggable ? 'grab' : 'default'};
+  box-shadow: ${props => props.isActive ? '0 0 15px rgba(173, 216, 230, 0.8)' : 'none'};
+  transition: box-shadow 0.2s;
+  
+  &:active {
+    cursor: ${props => props.draggable ? 'grabbing' : 'default'};
+  }
+`;
+
+const PrismValueTooltip = styled.div`
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 25;
+  pointer-events: none;
+  white-space: nowrap;
+`;
+
+const PositionIndicator = styled.div`
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  z-index: 5;
+  pointer-events: none;
+  animation: pulse 1.5s infinite;
+  
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.05); opacity: 0.3; }
+    100% { transform: scale(1); opacity: 0.6; }
+  }
 `;
 
 const Eye = ({ side }: { side: EyeSide }) => {
@@ -639,23 +690,238 @@ const Eye = ({ side }: { side: EyeSide }) => {
       />
       
       {isDominant && <DominantIndicator />}
-      {isOccluded && activeTool === 'occluder' && <Occluder side={side} />}
+      {isOccluded && activeTool === 'occluder' && <Occluder side={side} draggable={activeTool === 'occluder'} isActive={false} />}
     </EyeWrapper>
   );
 };
 
 const FaceModel = () => {
-  const { activeTool, prismAxis } = useEyeStore();
+  const { 
+    activeTool, 
+    prismAxis,
+    prismValue,
+    occluderPosition, 
+    setOccluderPosition,
+    setIrisPosition,
+    setPrismValue,
+    setPrismAxis
+  } = useEyeStore();
   const [isMounted, setIsMounted] = useState(false);
+  
+  // State for dragging tools
+  const [isDragging, setIsDragging] = useState(false);
+  const [targetPosition, setTargetPosition] = useState({ x: 50, y: 50 });
+  const [prismPosition, setPrismPosition] = useState({ x: 50, y: 50 });
+  const [occluderPos, setOccluderPos] = useState({ x: 0, y: 0 });
+  
+  // State for indicating valid positioning
+  const [showLeftEyeIndicator, setShowLeftEyeIndicator] = useState(false);
+  const [showRightEyeIndicator, setShowRightEyeIndicator] = useState(false);
+  
+  // References for eye positions
+  const leftEyeRef = useRef({ x: 0, y: 0 });
+  const rightEyeRef = useRef({ x: 0, y: 0 });
+  
+  // Reference for drag start position
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const dragElementRef = useRef<string | null>(null);
+  
+  // Container ref for coordinate calculations
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Check if component is mounted on client
   useEffect(() => {
     setIsMounted(true);
-    console.log("FaceModel mounted");
+    
+    // Set initial eye positions
+    const container = containerRef.current;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
+      
+      // Approximate eye positions based on the container size
+      leftEyeRef.current = { 
+        x: containerWidth * 0.33, 
+        y: containerHeight * 0.4 
+      };
+      
+      rightEyeRef.current = { 
+        x: containerWidth * 0.67, 
+        y: containerHeight * 0.4 
+      };
+      
+      // Initial positions for tools
+      setTargetPosition({ x: containerWidth / 2, y: containerHeight / 2 });
+      setPrismPosition({ x: containerWidth / 2, y: containerHeight / 2 });
+    }
   }, []);
 
+  // Mouse event handlers for dragging
+  const handleMouseDown = (e: React.MouseEvent, tool: string) => {
+    if (activeTool !== tool) return;
+    
+    e.preventDefault();
+    setIsDragging(true);
+    dragElementRef.current = tool;
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const mouseX = e.clientX - containerRect.left;
+    const mouseY = e.clientY - containerRect.top;
+    
+    // Store starting position for the drag
+    if (tool === 'target') {
+      dragStartRef.current = { 
+        x: mouseX - targetPosition.x, 
+        y: mouseY - targetPosition.y 
+      };
+    } else if (tool === 'prism') {
+      dragStartRef.current = { 
+        x: mouseX - prismPosition.x, 
+        y: mouseY - prismPosition.y 
+      };
+    } else if (tool === 'occluder') {
+      dragStartRef.current = { 
+        x: mouseX - occluderPos.x, 
+        y: mouseY - occluderPos.y 
+      };
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const mouseX = e.clientX - containerRect.left;
+    const mouseY = e.clientY - containerRect.top;
+    
+    if (dragElementRef.current === 'target') {
+      setTargetPosition({
+        x: mouseX - dragStartRef.current.x,
+        y: mouseY - dragStartRef.current.y
+      });
+      
+      // Update iris position to look at the target
+      const centerX = containerRect.width / 2;
+      const centerY = containerRect.height / 2;
+      
+      // Calculate direction from center to target (-1 to 1 range)
+      const dirX = (mouseX - centerX) / (containerRect.width / 2);
+      const dirY = (mouseY - centerY) / (containerRect.height / 2);
+      
+      // Update iris position to look at target
+      setIrisPosition('left', { x: dirX * 0.5, y: dirY * 0.5 });
+      setIrisPosition('right', { x: dirX * 0.5, y: dirY * 0.5 });
+    }
+    else if (dragElementRef.current === 'prism') {
+      setPrismPosition({
+        x: mouseX - dragStartRef.current.x,
+        y: mouseY - dragStartRef.current.y
+      });
+      
+      // Get the center of the container
+      const centerX = containerRect.width / 2;
+      const centerY = containerRect.height / 2;
+      
+      // Calculate distance from center (affects prism value)
+      const dx = mouseX - centerX;
+      const dy = mouseY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Convert distance to prism value (1-20 range)
+      // Normalize distance to max container dimension
+      const maxDimension = Math.max(containerRect.width, containerRect.height) / 2;
+      const normalizedDistance = Math.min(distance / maxDimension, 1);
+      const prismValue = Math.round(normalizedDistance * 20);
+      
+      // Calculate angle (affects prism axis)
+      // atan2 returns angle in radians, convert to degrees
+      let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      // Convert to 0-360 range
+      angle = (angle + 360) % 360;
+      // Round to nearest 15 degrees
+      const roundedAngle = Math.round(angle / 15) * 15;
+      
+      // Update prism values in the store
+      setPrismValue(prismValue);
+      setPrismAxis(roundedAngle);
+      
+      // Apply prism effect to iris positions
+      // Convert prism angle to radians
+      const angleRadians = (roundedAngle * Math.PI) / 180;
+      // Calculate displacement based on prism value and angle
+      // Normalize the displacement to be in the -0.5 to 0.5 range for irisPosition
+      const displacementFactor = prismValue / 40; // Scale down the effect
+      const displacementX = Math.cos(angleRadians) * displacementFactor;
+      const displacementY = Math.sin(angleRadians) * displacementFactor;
+      
+      // Apply displacement to iris positions to simulate prism effect
+      // For simplicity, we're applying the same effect to both eyes
+      // In a more advanced implementation, this could be made to affect
+      // only the eye behind the prism
+      setIrisPosition('left', { x: displacementX, y: displacementY });
+      setIrisPosition('right', { x: displacementX, y: displacementY });
+    }
+    else if (dragElementRef.current === 'occluder') {
+      setOccluderPos({
+        x: mouseX - dragStartRef.current.x,
+        y: mouseY - dragStartRef.current.y
+      });
+      
+      // Determine which eye is closer to the occluder
+      const leftDistance = Math.hypot(
+        mouseX - leftEyeRef.current.x,
+        mouseY - leftEyeRef.current.y
+      );
+      
+      const rightDistance = Math.hypot(
+        mouseX - rightEyeRef.current.x,
+        mouseY - rightEyeRef.current.y
+      );
+      
+      // Set occluder position based on which eye is closer
+      if (leftDistance < rightDistance && leftDistance < 100) {
+        setOccluderPosition('left');
+        setShowLeftEyeIndicator(true);
+        setShowRightEyeIndicator(false);
+      } else if (rightDistance < 100) {
+        setOccluderPosition('right');
+        setShowLeftEyeIndicator(false);
+        setShowRightEyeIndicator(true);
+      } else {
+        setOccluderPosition(null);
+        setShowLeftEyeIndicator(false);
+        setShowRightEyeIndicator(false);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    dragElementRef.current = null;
+    
+    // Hide indicators when stopping drag
+    setShowLeftEyeIndicator(false);
+    setShowRightEyeIndicator(false);
+  };
+
+  // Add and remove event listeners
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   return (
-    <FaceContainer>
+    <FaceContainer ref={containerRef}>
       {/* Add debug message */}
       {!isMounted && <div style={{ position: 'absolute', top: 10, left: 10, color: 'red' }}>Loading eyes...</div>}
       
@@ -666,8 +932,70 @@ const FaceModel = () => {
         </EyesContainer>
       </Face>
       
-      <TargetStick visible={activeTool === 'target'} />
-      <Prism visible={activeTool === 'prism'} axis={prismAxis} />
+      {/* Show position indicators for eyes when occluder is being dragged */}
+      {showLeftEyeIndicator && (
+        <PositionIndicator style={{ 
+          left: leftEyeRef.current.x, 
+          top: leftEyeRef.current.y,
+          transform: 'translate(-50%, -50%)'
+        }} />
+      )}
+      
+      {showRightEyeIndicator && (
+        <PositionIndicator style={{ 
+          left: rightEyeRef.current.x, 
+          top: rightEyeRef.current.y,
+          transform: 'translate(-50%, -50%)'
+        }} />
+      )}
+      
+      <TargetStick 
+        visible={activeTool === 'target'} 
+        draggable={activeTool === 'target'}
+        isActive={isDragging && dragElementRef.current === 'target'}
+        style={{ 
+          left: `${targetPosition.x}px`, 
+          top: `${targetPosition.y}px`, 
+          transform: 'translate(-50%, -50%)' 
+        }}
+        onMouseDown={(e) => handleMouseDown(e, 'target')}
+      />
+      
+      <Prism 
+        visible={activeTool === 'prism'} 
+        axis={prismAxis} 
+        draggable={activeTool === 'prism'}
+        isActive={isDragging && dragElementRef.current === 'prism'}
+        style={{ 
+          left: `${prismPosition.x}px`, 
+          top: `${prismPosition.y}px`, 
+          transform: `translate(-50%, -50%) rotate(${prismAxis}deg)` 
+        }}
+        onMouseDown={(e) => handleMouseDown(e, 'prism')}
+      />
+      
+      {/* Prism value tooltip */}
+      {activeTool === 'prism' && (
+        <PrismValueTooltip style={{ 
+          left: `${prismPosition.x + 80}px`, 
+          top: `${prismPosition.y - 30}px` 
+        }}>
+          {prismValue}Δ at {prismAxis}°
+        </PrismValueTooltip>
+      )}
+      
+      {occluderPosition && activeTool === 'occluder' && (
+        <Occluder 
+          side={occluderPosition}
+          draggable={activeTool === 'occluder'}
+          isActive={isDragging && dragElementRef.current === 'occluder'}
+          style={{ 
+            left: occluderPos.x || (occluderPosition === 'left' ? leftEyeRef.current.x - 70 : rightEyeRef.current.x - 70),
+            top: occluderPos.y || (leftEyeRef.current.y - 70)
+          }}
+          onMouseDown={(e) => handleMouseDown(e, 'occluder')}
+        />
+      )}
     </FaceContainer>
   );
 };
