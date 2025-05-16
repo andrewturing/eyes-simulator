@@ -39,7 +39,7 @@ export default function HeroSection() {
           </motion.div>
           
           <motion.div 
-            className="mt-10 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center"
+            className="mt-10 flex flex-col items-center sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.8 }}
@@ -48,7 +48,7 @@ export default function HeroSection() {
               user ? (
                 <Link
                   href="/simulator"
-                  className="px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200"
+                  className="w-64 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 text-center"
                 >
                   Launch Simulator
                 </Link>
@@ -56,13 +56,13 @@ export default function HeroSection() {
                 <>
                   <Link
                     href="/register"
-                    className="px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200"
+                    className="w-64 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 text-center"
                   >
                     Get Started
                   </Link>
                   <Link
                     href="/login"
-                    className="px-8 py-4 text-lg font-medium text-indigo-700 bg-white border-2 border-indigo-200 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200"
+                    className="w-64 px-8 py-4 text-lg font-medium text-indigo-700 bg-white border-2 border-indigo-200 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 text-center block sm:hidden"
                   >
                     Sign In
                   </Link>
