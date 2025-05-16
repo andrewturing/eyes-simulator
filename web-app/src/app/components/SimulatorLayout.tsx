@@ -24,6 +24,23 @@ const DynamicHeadModel3D = dynamic(() => import('./3D/HeadModel3D'), {
   )
 });
 
+const DynamicTwoDotFiveModel = dynamic(() => import('./2.5D/TwoDotFiveModel'), {
+  ssr: false,
+  loading: () => (
+    <div style={{
+      width: '100%',
+      height: '600px',
+      background: '#f0f0f0',
+      borderRadius: '8px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center'
+    }}>
+      <div>Loading 2.5D Model...</div>
+    </div>
+  )
+});
+
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -215,7 +232,7 @@ const FooterLinks = styled.div`
 
 const SimulatorLayout = () => {
   const [activeMode, setActiveMode] = useState<'explore' | 'test'>('explore');
-  const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D');
+  const [viewMode, setViewMode] = useState<'2D' | '2.5D' | '3D'>('2D');
   const [isMounted, setIsMounted] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -242,6 +259,22 @@ const SimulatorLayout = () => {
     checkDatabaseConnection();
   }, []);
 
+  // Function to render the appropriate model based on viewMode
+  const renderEyeModel = () => {
+    if (!isMounted) return null;
+    
+    switch (viewMode) {
+      case '2D':
+        return <DynamicFaceModel />;
+      case '2.5D':
+        return <DynamicTwoDotFiveModel />;
+      case '3D':
+        return <DynamicHeadModel3D />;
+      default:
+        return <DynamicFaceModel />;
+    }
+  };
+
   return (
     <Container>
       <Header>
@@ -267,48 +300,55 @@ const SimulatorLayout = () => {
       <Main>
         {connectionError && (
           <div style={{
-            marginBottom: '1rem',
             padding: '1rem',
-            backgroundColor: '#fee2e2',
-            borderRadius: '0.375rem',
-            color: '#b91c1c'
-          }}>
-            <p>{connectionError}</p>
-          </div>
-        )}
-        
-        {/* View mode toggle for 2D/3D */}
-        <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-        
-        {viewMode === '3D' && (
-          <div style={{
             marginBottom: '1rem',
-            padding: '0.75rem 1rem',
-            backgroundColor: '#eef2ff',
-            borderRadius: '0.375rem',
-            borderLeft: '4px solid #4f46e5',
-            color: '#4f46e5'
+            backgroundColor: '#FEE2E2',
+            color: '#B91C1C',
+            borderRadius: '0.5rem',
+            textAlign: 'center'
           }}>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>
-              <strong>3D Mode:</strong> Use mouse to rotate view, scroll to zoom in/out. All control panel changes apply to the 3D model in real-time.
-            </p>
+            {connectionError}
           </div>
         )}
         
         <SimulationContainer>
-          <EyeSimulation>
-            {/* Render the appropriate model based on viewMode */}
-            {isMounted && viewMode === '2D' && <DynamicFaceModel />}
-            {isMounted && viewMode === '3D' && <DynamicHeadModel3D />}
-          </EyeSimulation>
-
+          <div>
+            <EyeSimulation>
+              <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+              {viewMode === '3D' && (
+                <div style={{ 
+                  background: '#EEF2FF', 
+                  padding: '8px 16px', 
+                  borderRadius: '0px 0px 4px 4px',
+                  borderTop: '2px solid #C7D2FE',
+                  fontSize: '14px',
+                  color: '#4F46E5',
+                  marginBottom: '8px'
+                }}>
+                  3D Mode: Use mouse to rotate view, scroll to zoom in/out. All control panel changes apply to the 3D model in real-time.
+                </div>
+              )}
+              {viewMode === '2.5D' && (
+                <div style={{ 
+                  background: '#FEF3C7', 
+                  padding: '8px 16px', 
+                  borderRadius: '0px 0px 4px 4px',
+                  borderTop: '2px solid #FCD34D',
+                  fontSize: '14px',
+                  color: '#D97706',
+                  marginBottom: '8px'
+                }}>
+                  2.5D Mode: This sprite-based view offers realistic medical simulation similar to actual strabismus testing tools.
+                </div>
+              )}
+              {renderEyeModel()}
+            </EyeSimulation>
+            
+            <InfoPanel />
+          </div>
+          
           <ControlsContainer>
-            {isMounted ? (
-              <>
-                <ControlPanel />
-                <InfoPanel />
-              </>
-            ) : null}
+            <ControlPanel />
           </ControlsContainer>
         </SimulationContainer>
 
@@ -380,11 +420,11 @@ const SimulatorLayout = () => {
       <Footer>
         <FooterContent>
           <Copyright>
-            &copy; {new Date().getFullYear()} Advanced Eye Simulator. For medical education only.
+            © {new Date().getFullYear()} Eyes Simulator. All rights reserved.
           </Copyright>
           <FooterLinks>
-            <a href="#">About</a>
-            <a href="#">Help</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Privacy Policy</a>
             <a href="#">Contact</a>
           </FooterLinks>
         </FooterContent>

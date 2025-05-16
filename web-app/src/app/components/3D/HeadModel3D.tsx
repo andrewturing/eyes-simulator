@@ -54,8 +54,8 @@ const HeadModel = () => {
   // Helper function to generate a procedural iris texture
   const generateIrisTexture = (side: EyeSide) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 512; // Higher resolution texture
+    canvas.height = 512;
     const context = canvas.getContext('2d');
     
     if (!context) return null;
@@ -67,45 +67,111 @@ const HeadModel = () => {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = canvas.width / 2;
-    context.strokeStyle = 'rgba(0,0,0,0.6)';
+    
+    // Create radial gradient for more realistic iris depth
+    const gradient = context.createRadialGradient(
+      centerX, centerY, radius * 0.3, // Inner circle
+      centerX, centerY, radius * 0.9  // Outer circle
+    );
+    
+    // Extract color components for gradient
+    const baseColor = irisColor[side];
+    const darkerColor = adjustColorBrightness(baseColor, -30);
+    const lighterColor = adjustColorBrightness(baseColor, 20);
+    
+    gradient.addColorStop(0, lighterColor);
+    gradient.addColorStop(0.7, baseColor);
+    gradient.addColorStop(1, darkerColor);
+    
+    // Apply gradient
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.arc(centerX, centerY, radius * 0.9, 0, Math.PI * 2);
+    context.fill();
+    
+    // Create pupil edge darkening
+    const innerGradient = context.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, radius * 0.4
+    );
+    innerGradient.addColorStop(0, darkerColor);
+    innerGradient.addColorStop(1, 'transparent');
+    
+    context.globalAlpha = 0.4;
+    context.fillStyle = innerGradient;
+    context.beginPath();
+    context.arc(centerX, centerY, radius * 0.4, 0, Math.PI * 2);
+    context.fill();
+    context.globalAlpha = 1.0;
+    
+    context.strokeStyle = 'rgba(0,0,0,0.7)';
     
     // Generate pattern based on type
     if (irisTextureType[side] === 'radial' || irisTextureType[side] === 'solid') {
       // Draw radial lines
-      const lineCount = 60;
+      const lineCount = 80; // More lines for more detail
       context.lineWidth = 1;
+      
       for (let i = 0; i < lineCount; i++) {
         const angle = (i / lineCount) * Math.PI * 2;
+        const innerRadius = radius * 0.3; // Start from pupil edge
+        const outerRadius = radius * 0.9; // End at iris edge
+        
         context.beginPath();
-        context.moveTo(centerX, centerY);
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-        context.lineTo(x, y);
+        context.moveTo(
+          centerX + Math.cos(angle) * innerRadius,
+          centerY + Math.sin(angle) * innerRadius
+        );
+        
+        // Add slight curve to the lines for realism
+        const midAngle = angle + (Math.random() * 0.05 - 0.025);
+        const midRadius = (innerRadius + outerRadius) / 2;
+        const ctrlX = centerX + Math.cos(midAngle) * midRadius;
+        const ctrlY = centerY + Math.sin(midAngle) * midRadius;
+        
+        context.quadraticCurveTo(
+          ctrlX, ctrlY,
+          centerX + Math.cos(angle) * outerRadius,
+          centerY + Math.sin(angle) * outerRadius
+        );
+        
+        context.globalAlpha = 0.3 + Math.random() * 0.3;
         context.stroke();
+        context.globalAlpha = 1.0;
       }
       
       // Add concentric circles
-      for (let r = radius; r > 10; r -= 15) {
+      context.globalAlpha = 0.3;
+      for (let r = radius * 0.9; r > radius * 0.3; r -= radius * 0.1) {
         context.beginPath();
         context.arc(centerX, centerY, r, 0, Math.PI * 2);
+        context.lineWidth = 1 + Math.random() * 1.5;
         context.stroke();
       }
+      context.globalAlpha = 1.0;
     } 
     else if (irisTextureType[side] === 'starburst') {
       // Create a starburst pattern
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 30; i++) { // More patterns
         const angle = Math.random() * Math.PI * 2;
-        const length = 30 + Math.random() * (radius - 30);
-        const width = 5 + Math.random() * 15;
+        const innerRadius = radius * 0.3;
+        const outerRadius = radius * (0.7 + Math.random() * 0.2);
+        const width = 2 + Math.random() * 5;
         
         context.beginPath();
-        context.moveTo(centerX, centerY);
-        const x = centerX + Math.cos(angle) * length;
-        const y = centerY + Math.sin(angle) * length;
-        context.lineTo(x, y);
+        context.moveTo(
+          centerX + Math.cos(angle) * innerRadius,
+          centerY + Math.sin(angle) * innerRadius
+        );
+        context.lineTo(
+          centerX + Math.cos(angle) * outerRadius,
+          centerY + Math.sin(angle) * outerRadius
+        );
         context.lineWidth = width;
+        context.globalAlpha = 0.2 + Math.random() * 0.4;
         context.stroke();
       }
+      context.globalAlpha = 1.0;
     }
 
     // Create texture from canvas
@@ -113,6 +179,25 @@ const HeadModel = () => {
     texture.needsUpdate = true;
     
     return texture;
+  };
+
+  // Helper function to adjust color brightness
+  const adjustColorBrightness = (hexColor: string, amount: number): string => {
+    // Convert hex to RGB
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Adjust brightness
+    const adjustedR = Math.max(0, Math.min(255, r + amount));
+    const adjustedG = Math.max(0, Math.min(255, g + amount));
+    const adjustedB = Math.max(0, Math.min(255, b + amount));
+
+    // Convert back to hex
+    return `#${adjustedR.toString(16).padStart(2, '0')}${
+      adjustedG.toString(16).padStart(2, '0')}${
+      adjustedB.toString(16).padStart(2, '0')}`;
   };
 
   // Update iris textures when colors or patterns change
@@ -231,21 +316,21 @@ const HeadModel = () => {
     if (leftIrisRef.current && rightIrisRef.current && leftPupilRef.current && rightPupilRef.current) {
       // Left eye
       const leftIrisPos = irisPosition.left;
-      leftIrisRef.current.position.x = leftIrisPos.x * 0.1;
+      leftIrisRef.current.position.x = leftIrisPos.x * 0.15;
       leftIrisRef.current.position.y = leftIrisPos.y * 0.1;
       
       // Right eye
       const rightIrisPos = irisPosition.right;
-      rightIrisRef.current.position.x = rightIrisPos.x * 0.1;
+      rightIrisRef.current.position.x = rightIrisPos.x * 0.15;
       rightIrisRef.current.position.y = rightIrisPos.y * 0.1;
       
       // Pupils
       const leftPupilPos = pupilPosition.left;
-      leftPupilRef.current.position.x = leftIrisPos.x * 0.1 + (leftPupilPos.x - leftIrisPos.x) * 0.02;
+      leftPupilRef.current.position.x = leftIrisPos.x * 0.15 + (leftPupilPos.x - leftIrisPos.x) * 0.02;
       leftPupilRef.current.position.y = leftIrisPos.y * 0.1 + (leftPupilPos.y - leftIrisPos.y) * 0.02;
       
       const rightPupilPos = pupilPosition.right;
-      rightPupilRef.current.position.x = rightIrisPos.x * 0.1 + (rightPupilPos.x - rightIrisPos.x) * 0.02;
+      rightPupilRef.current.position.x = rightIrisPos.x * 0.15 + (rightPupilPos.x - rightIrisPos.x) * 0.02;
       rightPupilRef.current.position.y = rightIrisPos.y * 0.1 + (rightPupilPos.y - rightIrisPos.y) * 0.02;
     }
   }, [irisPosition, pupilPosition]);
@@ -255,13 +340,13 @@ const HeadModel = () => {
     if (leftEyelidUpperRef.current && rightEyelidUpperRef.current && leftEyelidLowerRef.current && rightEyelidLowerRef.current) {
       // Left eyelids
       const leftOpenAmount = eyelidPosition.left;
-      leftEyelidUpperRef.current.position.y = 0.15 + (1 - leftOpenAmount) * 0.2;
-      leftEyelidLowerRef.current.position.y = -0.15 - (1 - leftOpenAmount) * 0.2;
+      leftEyelidUpperRef.current.position.y = 0.2 + (1 - leftOpenAmount) * 0.15;
+      leftEyelidLowerRef.current.position.y = -0.2 - (1 - leftOpenAmount) * 0.15;
       
       // Right eyelids
       const rightOpenAmount = eyelidPosition.right;
-      rightEyelidUpperRef.current.position.y = 0.15 + (1 - rightOpenAmount) * 0.2;
-      rightEyelidLowerRef.current.position.y = -0.15 - (1 - rightOpenAmount) * 0.2;
+      rightEyelidUpperRef.current.position.y = 0.2 + (1 - rightOpenAmount) * 0.15;
+      rightEyelidLowerRef.current.position.y = -0.2 - (1 - rightOpenAmount) * 0.15;
     }
   }, [eyelidPosition]);
 
@@ -379,27 +464,45 @@ const HeadModel = () => {
           <meshStandardMaterial color="white" roughness={0.1} metalness={0.1} />
         </mesh>
         
-        {/* Iris */}
-        <mesh ref={leftIrisRef} position={[0, 0, 0.18]}>
-          <circleGeometry args={[0.1, 32]} />
-          <meshStandardMaterial 
-            color={irisColor.left}
-            roughness={0.5}
-            metalness={0.2}
-            transparent={true}
-          />
-        </mesh>
+        {/* Iris - with slight depth effect using a ring geometry */}
+        <group position={[0, 0, 0.19]}>
+          <mesh ref={leftIrisRef}>
+            <circleGeometry args={[0.1, 64]} />
+            <meshStandardMaterial 
+              color={irisColor.left}
+              roughness={0.5}
+              metalness={0.3}
+              transparent={true}
+              emissive={new THREE.Color(irisColor.left).multiplyScalar(0.2)}
+            />
+          </mesh>
+          {/* Subtle iris 3D rim to give depth */}
+          <mesh position={[0, 0, -0.001]}>
+            <ringGeometry args={[0.09, 0.1, 64]} />
+            <meshStandardMaterial 
+              color={adjustColorBrightness(irisColor.left, -40)}
+              roughness={0.3}
+              metalness={0.4}
+            />
+          </mesh>
+        </group>
         
         {/* Pupil */}
-        <mesh ref={leftPupilRef} position={[0, 0, 0.185]}>
-          <circleGeometry args={[0.05, 32]} />
+        <mesh ref={leftPupilRef} position={[0, 0, 0.195]}>
+          <circleGeometry args={[0.05 * (pupilSize.left / 3), 64]} />
           <meshStandardMaterial color="black" roughness={0.2} />
+        </mesh>
+        
+        {/* Eye highlight */}
+        <mesh position={[0.025, 0.025, 0.2]}>
+          <circleGeometry args={[0.015, 16]} />
+          <meshBasicMaterial color="white" transparent={true} opacity={0.85} />
         </mesh>
         
         {/* Tear film */}
         <mesh 
           ref={leftTearFilmRef}
-          position={[0, 0, 0.19]}
+          position={[0, 0, 0.2]}
           visible={tearFilmVisible.left}
         >
           <sphereGeometry args={[0.21, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
@@ -416,20 +519,20 @@ const HeadModel = () => {
         {/* Upper eyelid */}
         <mesh 
           ref={leftEyelidUpperRef}
-          position={[0, 0.15, 0.05]}
-          rotation={[Math.PI * 0.05, 0, 0]}
+          position={[0, 0.2, 0.05]}
+          rotation={[Math.PI * 0.08, 0, 0]}
         >
-          <boxGeometry args={[0.3, 0.15, 0.25]} />
+          <boxGeometry args={[0.3, 0.2, 0.2]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
         
         {/* Lower eyelid */}
         <mesh 
           ref={leftEyelidLowerRef}
-          position={[0, -0.15, 0.05]}
-          rotation={[-Math.PI * 0.05, 0, 0]}
+          position={[0, -0.2, 0.05]}
+          rotation={[-Math.PI * 0.08, 0, 0]}
         >
-          <boxGeometry args={[0.3, 0.15, 0.25]} />
+          <boxGeometry args={[0.3, 0.2, 0.2]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
         
@@ -450,27 +553,45 @@ const HeadModel = () => {
           <meshStandardMaterial color="white" roughness={0.1} metalness={0.1} />
         </mesh>
         
-        {/* Iris */}
-        <mesh ref={rightIrisRef} position={[0, 0, 0.18]}>
-          <circleGeometry args={[0.1, 32]} />
-          <meshStandardMaterial 
-            color={irisColor.right}
-            roughness={0.5}
-            metalness={0.2}
-            transparent={true}
-          />
-        </mesh>
+        {/* Iris - with slight depth effect using a ring geometry */}
+        <group position={[0, 0, 0.19]}>
+          <mesh ref={rightIrisRef}>
+            <circleGeometry args={[0.1, 64]} />
+            <meshStandardMaterial 
+              color={irisColor.right}
+              roughness={0.5}
+              metalness={0.3}
+              transparent={true}
+              emissive={new THREE.Color(irisColor.right).multiplyScalar(0.2)}
+            />
+          </mesh>
+          {/* Subtle iris 3D rim to give depth */}
+          <mesh position={[0, 0, -0.001]}>
+            <ringGeometry args={[0.09, 0.1, 64]} />
+            <meshStandardMaterial 
+              color={adjustColorBrightness(irisColor.right, -40)}
+              roughness={0.3}
+              metalness={0.4}
+            />
+          </mesh>
+        </group>
         
         {/* Pupil */}
-        <mesh ref={rightPupilRef} position={[0, 0, 0.185]}>
-          <circleGeometry args={[0.05, 32]} />
+        <mesh ref={rightPupilRef} position={[0, 0, 0.195]}>
+          <circleGeometry args={[0.05 * (pupilSize.right / 3), 64]} />
           <meshStandardMaterial color="black" roughness={0.2} />
+        </mesh>
+        
+        {/* Eye highlight */}
+        <mesh position={[-0.025, 0.025, 0.2]}>
+          <circleGeometry args={[0.015, 16]} />
+          <meshBasicMaterial color="white" transparent={true} opacity={0.85} />
         </mesh>
         
         {/* Tear film */}
         <mesh 
           ref={rightTearFilmRef}
-          position={[0, 0, 0.19]}
+          position={[0, 0, 0.2]}
           visible={tearFilmVisible.right}
         >
           <sphereGeometry args={[0.21, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
@@ -487,20 +608,20 @@ const HeadModel = () => {
         {/* Upper eyelid */}
         <mesh 
           ref={rightEyelidUpperRef}
-          position={[0, 0.15, 0.05]}
-          rotation={[Math.PI * 0.05, 0, 0]}
+          position={[0, 0.2, 0.05]}
+          rotation={[Math.PI * 0.08, 0, 0]}
         >
-          <boxGeometry args={[0.3, 0.15, 0.25]} />
+          <boxGeometry args={[0.3, 0.2, 0.2]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
         
         {/* Lower eyelid */}
         <mesh 
           ref={rightEyelidLowerRef}
-          position={[0, -0.15, 0.05]}
-          rotation={[-Math.PI * 0.05, 0, 0]}
+          position={[0, -0.2, 0.05]}
+          rotation={[-Math.PI * 0.08, 0, 0]}
         >
-          <boxGeometry args={[0.3, 0.15, 0.25]} />
+          <boxGeometry args={[0.3, 0.2, 0.2]} />
           <meshStandardMaterial color="#f0d0c0" />
         </mesh>
         
@@ -559,9 +680,10 @@ const HeadModel3D = () => {
   
   return (
     <div style={{ width: '100%', height: '600px', background: '#f0f0f0', borderRadius: '8px', overflow: 'hidden' }}>
-      <Canvas shadows camera={{ position: [0, 0, 4], fov: 45 }} onError={handleError}>
-        <ambientLight intensity={0.8} />
-        <spotLight position={[5, 5, 5]} angle={0.3} penumbra={1} intensity={1} castShadow />
+      <Canvas shadows camera={{ position: [0, 0.3, 3.8], fov: 40 }} onError={handleError}>
+        <ambientLight intensity={1.0} />
+        <spotLight position={[5, 5, 5]} angle={0.3} penumbra={1} intensity={1.2} castShadow />
+        <spotLight position={[0, 0, 8]} angle={0.2} penumbra={0.5} intensity={0.8} distance={10} />
         <HeadModel />
         <OrbitControls 
           enableZoom={true}
@@ -570,7 +692,7 @@ const HeadModel3D = () => {
           maxDistance={10}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 1.5}
-          target={[0, 0, 0]}
+          target={[0, 0.3, 0]}
         />
         <Environment preset="sunset" />
       </Canvas>

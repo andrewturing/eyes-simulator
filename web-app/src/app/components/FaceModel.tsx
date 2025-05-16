@@ -205,8 +205,8 @@ const Pupil = styled(motion.div)<{
   pathologyType: PathologyType;
   pathologyIntensity: number;
 }>`
-  width: ${(props) => props.size * 4}px;
-  height: ${(props) => props.size * 4}px;
+  width: ${(props) => props.size * 6}px;
+  height: ${(props) => props.size * 6}px;
   background-color: #000;
   border-radius: 50%;
   opacity: ${(props) => props.isOccluded ? 0.5 : 1};
@@ -552,8 +552,8 @@ const Eye = ({ side }: { side: EyeSide }) => {
   const { x: xPosition, y: yPosition } = calculateEyePosition();
   
   // Get iris and pupil positions relative to eye
-  const irisX = irisPosition[side].x * 40; // Scale for visible movement (increased from 30)
-  const irisY = irisPosition[side].y * 40; // Scale for visible movement (increased from 30)
+  const irisX = irisPosition[side].x * 60; // Increased from 40 to 60 for wider x-axis movement
+  const irisY = irisPosition[side].y * 40; // Keep y-axis scaling the same
   
   // Calculate pupil position relative to iris
   const pupilOffsetX = (pupilPosition[side].x - irisPosition[side].x) * 15; // Smaller scale for pupil

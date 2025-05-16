@@ -36,7 +36,7 @@ const Eye = ({ side, position = [0, 0, 0] }: { side: EyeSide; position?: [number
   const eyeBaseRadius = 1.0 * currentEyeSize;
   const irisBaseRadius = 0.4 * currentEyeSize;
   const currentPupilSize = pupilSize[side];
-  const pupilBaseRadius = (0.2 * currentPupilSize / 5) * currentEyeSize;
+  const pupilBaseRadius = (0.2 * currentPupilSize / 3) * currentEyeSize;
 
   // Handle eyelid animation
   useEffect(() => {
@@ -54,12 +54,12 @@ const Eye = ({ side, position = [0, 0, 0] }: { side: EyeSide; position?: [number
     if (irisRef.current && pupilRef.current) {
       // Apply iris position
       const irisPos = irisPosition[side];
-      irisRef.current.position.x = irisPos.x * 0.5;
+      irisRef.current.position.x = irisPos.x * 0.7;
       irisRef.current.position.y = irisPos.y * 0.5;
       
       // Apply pupil position
       const pupilPos = pupilPosition[side];
-      pupilRef.current.position.x = irisPos.x * 0.5 + (pupilPos.x - irisPos.x) * 0.2;
+      pupilRef.current.position.x = irisPos.x * 0.7 + (pupilPos.x - irisPos.x) * 0.2;
       pupilRef.current.position.y = irisPos.y * 0.5 + (pupilPos.y - irisPos.y) * 0.2;
     }
   }, [irisPosition, pupilPosition, side]);

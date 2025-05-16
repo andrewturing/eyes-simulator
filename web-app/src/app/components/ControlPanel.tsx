@@ -560,7 +560,7 @@ const DeviationControls = () => {
       </ControlRow>
 
       <GroupTitle>Phorias (Latent Deviations)</GroupTitle>
-      
+
       <ControlRow>
         <Label style={{ fontWeight: '500', color: '#4f46e5' }}>Occluder Tool</Label>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -899,7 +899,7 @@ export default function ControlPanel() {
             setStatusMessage('No saved configurations found. Create your first one!');
           } else {
             setStatusMessage('');
-          }
+    }
         } catch (error) {
           console.error('Error loading configurations:', error);
           setStatusMessage(`Failed to load saved configurations: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -998,7 +998,7 @@ export default function ControlPanel() {
                  new Date(b.updatedAt || b.createdAt || '').getTime();
         default:
           return 0;
-      }
+    }
     });
   };
 
@@ -1168,7 +1168,7 @@ export default function ControlPanel() {
                           }}
                         >
                           Cancel
-                        </Button>
+                  </Button>
                       </>
                     ) : (
                       <DeleteButton 

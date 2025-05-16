@@ -27,6 +27,11 @@ const ToggleButton = styled.button<{ active: boolean }>`
     border-bottom-right-radius: 8px;
   }
 
+  &:not(:first-of-type):not(:last-of-type) {
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
   &:hover {
     background: ${props => props.active ? '#2c3e50' : '#d1d5db'};
   }
@@ -44,8 +49,8 @@ const Badge = styled.span`
 `;
 
 interface ViewToggleProps {
-  viewMode: '2D' | '3D';
-  setViewMode: (mode: '2D' | '3D') => void;
+  viewMode: '2D' | '2.5D' | '3D';
+  setViewMode: (mode: '2D' | '2.5D' | '3D') => void;
 }
 
 const ViewToggle: React.FC<ViewToggleProps> = ({ viewMode, setViewMode }) => {
@@ -56,6 +61,12 @@ const ViewToggle: React.FC<ViewToggleProps> = ({ viewMode, setViewMode }) => {
         onClick={() => setViewMode('2D')}
       >
         2D View
+      </ToggleButton>
+      <ToggleButton
+        active={viewMode === '2.5D'}
+        onClick={() => setViewMode('2.5D')}
+      >
+        2.5D View <Badge>Experimental</Badge>
       </ToggleButton>
       <ToggleButton
         active={viewMode === '3D'}

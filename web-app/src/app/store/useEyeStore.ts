@@ -274,10 +274,11 @@ const useEyeStore = create<EyeState>((set, get) => ({
         };
         
         // Constrain iris movement within eyeball
-        // Increase max movement range from 0.5 to 0.8 for more extreme positioning
-        const maxIrisMove = 0.8;
-        newIrisPos.x = Math.max(-maxIrisMove, Math.min(maxIrisMove, newIrisPos.x));
-        newIrisPos.y = Math.max(-maxIrisMove, Math.min(maxIrisMove, newIrisPos.y));
+        // Increase max movement range from 0.8 to 1.2 for more extreme positioning on x-axis
+        const maxIrisMoveX = 1.2;
+        const maxIrisMoveY = 0.8;
+        newIrisPos.x = Math.max(-maxIrisMoveX, Math.min(maxIrisMoveX, newIrisPos.x));
+        newIrisPos.y = Math.max(-maxIrisMoveY, Math.min(maxIrisMoveY, newIrisPos.y));
         
         updates.irisPosition = {
           ...state.irisPosition,
