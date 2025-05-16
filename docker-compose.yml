@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Web Application Service - Production
+  web-app:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile
+    container_name: eyes-simulator-webapp
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Use the MongoDB connection parameters from env_example
+      - MONGODB_DATABASE=${MONGODB_DATABASE}
+      - MONGODB_USER=${MONGODB_USER}
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+      - MONGODB_HOST=${MONGODB_HOST}
+      - MONGODB_PORT=${MONGODB_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      # Mount the env_example as .env in the container
+      - ./web-app/env_example:/app/.env:ro
+
+  # Web Application Service - Development
+  web-app-dev:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile.dev
+    container_name: eyes-simulator-webapp-dev
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      # Use the MongoDB connection parameters from env_example
+      - MONGODB_DATABASE=${MONGODB_DATABASE}
+      - MONGODB_USER=${MONGODB_USER}
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+      - MONGODB_HOST=${MONGODB_HOST}
+      - MONGODB_PORT=${MONGODB_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./web-app:/app
+      - /app/node_modules
+      - /app/.next
+      # Mount the env_example as .env in the container
+      - ./web-app/env_example:/app/.env:ro
+    command: yarn dev
+    profiles:
+      - dev
+
+# No need for networks or volumes since MongoDB is external 

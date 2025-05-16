@@ -1,14 +1,27 @@
 import { MongoClient } from 'mongodb';
 
-if (!process.env.MONGODB_HOST || 
-    !process.env.MONGODB_PORT || 
-    !process.env.MONGODB_DATABASE || 
-    !process.env.MONGODB_USER || 
-    !process.env.MONGODB_PASSWORD) {
-  throw new Error('MongoDB environment variables are not defined');
+// Use default values if environment variables are not defined
+const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost';
+const MONGODB_PORT = process.env.MONGODB_PORT || '27017';
+const MONGODB_DATABASE = process.env.MONGODB_DATABASE || 'EyesSimulator';
+const MONGODB_USER = process.env.MONGODB_USER || '';
+const MONGODB_PASSWORD = process.env.MONGODB_PASSWORD || '';
+
+// Construct MongoDB URI
+let uri: string;
+
+if (!MONGODB_USER || !MONGODB_PASSWORD) {
+  // Connect without authentication if username or password is not provided
+  uri = `mongodb://${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}`;
+  console.log('Using MongoDB connection without authentication');
+} else {
+  // Connect with authentication
+  uri = `mongodb://${MONGODB_USER}:${encodeURIComponent(MONGODB_PASSWORD)}@${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DATABASE}?authSource=admin`;
+  console.log('Using MongoDB connection with authentication');
 }
 
-const uri = `mongodb://${process.env.MONGODB_USER}:${encodeURIComponent(process.env.MONGODB_PASSWORD)}@${process.env.MONGODB_HOST}:${process.env.MONGODB_PORT}/${process.env.MONGODB_DATABASE}?authSource=admin`;
+console.log(`Connecting to MongoDB at ${MONGODB_HOST}:${MONGODB_PORT}`);
+
 const options = {};
 
 let client: MongoClient;
@@ -23,13 +36,19 @@ if (process.env.NODE_ENV === 'development') {
 
   if (!globalWithMongo._mongoClientPromise) {
     client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+    globalWithMongo._mongoClientPromise = client.connect().catch(err => {
+      console.error('MongoDB connection error:', err);
+      throw err;
+    });
   }
   clientPromise = globalWithMongo._mongoClientPromise;
 } else {
   // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  clientPromise = client.connect().catch(err => {
+    console.error('MongoDB connection error:', err);
+    throw err;
+  });
 }
 
 // Export a module-scoped MongoClient promise. By doing this in a

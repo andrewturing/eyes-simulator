@@ -1,5 +1,6 @@
 # Eyes Simulator Project .gitignore
 screenshots/
+example/
 
 # Dependencies
 node_modules/

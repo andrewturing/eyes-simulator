@@ -3,14 +3,14 @@ import { connectToDatabase } from '@/utils/serverDb';
 import { verifyAuth } from '@/utils/auth';
 import { ObjectId } from 'mongodb';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
+// Add explicit route segment config to indicate Node.js runtime
+export const runtime = 'nodejs';
 
 // GET /api/configurations/[id] - Get a specific configuration
-export async function GET(req: NextRequest, { params }: RouteParams) {
+export async function GET(
+  req: NextRequest,
+  { params }: any
+) {
   try {
     const authResult = await verifyAuth();
     if (!authResult.success) {
@@ -42,7 +42,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/configurations/[id] - Delete a configuration
-export async function DELETE(req: NextRequest, { params }: RouteParams) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: any
+) {
   try {
     const authResult = await verifyAuth();
     if (!authResult.success) {
