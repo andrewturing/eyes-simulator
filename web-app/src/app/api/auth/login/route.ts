@@ -77,18 +77,21 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Set secure HTTP-only cookie
+    // Set secure HTTP-only cookie with updated settings
     response.cookies.set({
       name: 'auth-token',
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // Use secure=false when in Docker to test, or set explicitly based on environment
+      secure: false, // process.env.NODE_ENV === 'production', 
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
+      // Make sure there's no domain restriction that could cause issues in Docker
+      domain: undefined
     });
 
-    console.log('Auth cookie set on response');
+    console.log('Auth cookie set on response with updated settings');
     return response;
   } catch (error) {
     console.error('Login error:', error);

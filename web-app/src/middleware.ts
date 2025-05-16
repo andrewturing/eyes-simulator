@@ -11,7 +11,8 @@ const publicRoutes = ['/',
                        '/cookie-test',
                        '/api/debug',
                        '/simulator',
-                       '/api/auth/set-test-cookie'];
+                       '/api/auth/set-test-cookie',
+                       '/api/auth/check-cookie'];
 
 export function middleware(request: NextRequest) {
   const currentPath = request.nextUrl.pathname;

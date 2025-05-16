@@ -42,6 +42,7 @@ const Joystick = styled.div<{ active: boolean }>`
   background-color: ${props => props.active ? '#3b82f6' : '#6b7280'};
   cursor: grab;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.05s ease-out, background-color 0.2s ease;
   
   &:active {
     cursor: grabbing;
@@ -60,6 +61,21 @@ const CrosshairVertical = styled.div`
   width: 1px;
   height: 80%;
   background-color: rgba(0, 0, 0, 0.2);
+`;
+
+const MoveGrid = styled.div`
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  opacity: 0.1;
+  pointer-events: none;
+`;
+
+const GridCell = styled.div`
+  border: 0.5px dashed #666;
 `;
 
 const ModeToggle = styled.div`
@@ -116,6 +132,13 @@ const JoystickControl: React.FC<JoystickControlProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [joystickVisualPos, setJoystickVisualPos] = useState({ x: 0, y: 0 });
+  const [lastMovement, setLastMovement] = useState({ x: 0, y: 0 });
+  const [sensitivity, setSensitivity] = useState(1);
+  
+  // For smooth movement
+  const requestRef = useRef<number | undefined>(undefined);
+  const previousTimeRef = useRef<number | undefined>(undefined);
   
   // Handle mouse/touch down
   const handleStart = (clientX: number, clientY: number) => {
@@ -165,13 +188,45 @@ const JoystickControl: React.FC<JoystickControlProps> = ({
     // Update position
     setPosition({ x, y });
     
-    // Trigger movement callback with normalized values (-1 to 1)
-    onMove(x / 5, y / 5); // Doubled sensitivity for more pronounced movement
+    // Set visual position immediately for responsive feel
+    setJoystickVisualPos({ x, y });
+    
+    // Movement is applied with a smaller factor for finer control
+    // This makes the movement more precise
+    const moveFactorX = x / 10 * sensitivity; 
+    const moveFactorY = y / 10 * sensitivity;
+    
+    setLastMovement({ x: moveFactorX, y: moveFactorY });
   };
+  
+  // Animation loop for smooth movement
+  const animate = (time: number) => {
+    if (previousTimeRef.current !== undefined) {
+      if (isDragging) {
+        // Apply movement with smoothing
+        onMove(lastMovement.x, lastMovement.y);
+      }
+    }
+    previousTimeRef.current = time;
+    requestRef.current = requestAnimationFrame(animate);
+  };
+  
+  // Start/stop animation loop
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [isDragging, lastMovement]);
   
   // Handle mouse/touch end
   const handleEnd = () => {
     setIsDragging(false);
+    setPosition({ x: 0, y: 0 });
+    setJoystickVisualPos({ x: 0, y: 0 });
+    setLastMovement({ x: 0, y: 0 });
   };
   
   // Set up event listeners
@@ -222,6 +277,28 @@ const JoystickControl: React.FC<JoystickControlProps> = ({
   
   return (
     <JoystickContainer>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <div style={{ fontSize: '0.8rem', color: '#555' }}>
+          <span>Controlling: {side === 'left' ? 'Left Eye' : 'Right Eye'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.25rem' }}>
+            <span style={{ marginRight: '0.5rem' }}>Sensitivity:</span>
+            <input 
+              type="range" 
+              min="0.5" 
+              max="2" 
+              step="0.1" 
+              value={sensitivity} 
+              onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+              style={{ width: '80px' }}
+            />
+            <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>{sensitivity.toFixed(1)}x</span>
+          </div>
+        </div>
+        <ResetButton onClick={onReset}>
+          Reset
+        </ResetButton>
+      </div>
+      
       <ModeToggle>
         <ModeButton 
           active={movementMode === 'iris_and_pupil'} 
@@ -241,17 +318,7 @@ const JoystickControl: React.FC<JoystickControlProps> = ({
         >
           Pupil Only
         </ModeButton>
-        <ResetButton onClick={onReset}>
-          Reset
-        </ResetButton>
       </ModeToggle>
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-        <span style={{ fontSize: '0.8rem', color: '#555' }}>Controlling: {side === 'left' ? 'Left Eye' : 'Right Eye'}</span>
-        <span style={{ fontSize: '0.8rem', color: '#666' }}>
-          x: {position.x.toFixed(2)}, y: {position.y.toFixed(2)}
-        </span>
-      </div>
       
       <ControlArea 
         ref={containerRef}
@@ -261,21 +328,36 @@ const JoystickControl: React.FC<JoystickControlProps> = ({
             handleStart(e.touches[0].clientX, e.touches[0].clientY);
           }
         }}
-        style={{ borderColor: side === 'left' ? '#3b82f6' : '#f59e0b' }}
       >
         <CrosshairHorizontal />
         <CrosshairVertical />
+        <MoveGrid>
+          {Array.from({ length: 81 }).map((_, i) => (
+            <GridCell key={i} />
+          ))}
+        </MoveGrid>
         <JoystickBase>
           <Joystick 
             ref={joystickRef}
             active={isDragging}
             style={{
-              transform: `translate(${position.x * 20}px, ${position.y * 20}px)`,
-              backgroundColor: isDragging ? (side === 'left' ? '#3b82f6' : '#f59e0b') : '#6b7280'
+              transform: `translate(${joystickVisualPos.x * 20}px, ${joystickVisualPos.y * 20}px)`,
             }}
           />
         </JoystickBase>
       </ControlArea>
+      
+      <div style={{ 
+        fontSize: '0.7rem', 
+        color: '#666', 
+        textAlign: 'center', 
+        marginTop: '0.25rem' 
+      }}>
+        {isDragging 
+          ? `Moving ${movementMode.replace('_', ' ')} at (${position.x.toFixed(2)}, ${position.y.toFixed(2)})`
+          : 'Click/touch and drag to move eye position'
+        }
+      </div>
     </JoystickContainer>
   );
 };

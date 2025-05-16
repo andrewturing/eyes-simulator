@@ -36,9 +36,11 @@ export function setAuthCookieOnResponse(res: NextResponse, token: string): NextR
     name: TOKEN_NAME,
     value: token,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false to work in Docker environments
+    sameSite: 'lax',
     maxAge: TOKEN_EXPIRY,
     path: '/',
+    domain: undefined // Ensure no domain restriction
   });
   return res;
 }
