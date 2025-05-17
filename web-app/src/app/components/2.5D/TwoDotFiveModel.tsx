@@ -19,6 +19,7 @@ const Canvas = styled.canvas`
   left: 0;
   width: 100%;
   height: 100%;
+  pointer-events: auto;
 `;
 
 const ControlsOverlay = styled.div`
@@ -82,6 +83,28 @@ const ErrorOverlay = styled.div`
   text-align: center;
 `;
 
+// Add interactive feedback indicator
+const DragFeedback = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 150;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  & > span {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+`;
+
 interface ImageAsset {
   img: HTMLImageElement;
   loaded: boolean;
@@ -94,6 +117,11 @@ interface Tool {
   height: number;
   active: boolean;
   dragging: boolean;
+}
+
+interface PrismTool extends Tool {
+  value: number;
+  axis: number;
 }
 
 interface EyePosition {
@@ -123,12 +151,15 @@ const TwoDotFiveModel = () => {
   const [eyeCenterOS] = useState({ x: 600, y: 215 });
   
   // Tools state
-  const [activeTool, setActiveTool] = useState<'occluder' | 'target' | null>(null);
+  const [activeTool, setActiveTool] = useState<'occluder' | 'target' | 'prism' | null>(null);
   const [occluder, setOccluder] = useState<Tool>({ 
     x: eyeCenterOD.x, y: eyeCenterOD.y, width: 200, height: 200, active: false, dragging: false 
   });
   const [target, setTarget] = useState<Tool>({ 
     x: 450, y: 80, width: 130, height: 570, active: false, dragging: false 
+  });
+  const [prism, setPrism] = useState<PrismTool>({
+    x: 450, y: 300, width: 150, height: 150, active: false, dragging: false, value: 0, axis: 0
   });
 
   // Eye positions with deviations
@@ -173,24 +204,41 @@ const TwoDotFiveModel = () => {
     setOccluderPosition,
     activeTool: storeActiveTool,
     setActiveTool: setStoreActiveTool,
-    setIrisPosition
+    setIrisPosition,
+    prismValue,
+    setPrismValue,
+    prismAxis,
+    setPrismAxis
   } = useEyeStore();
 
   // Animation loop reference
   const animationFrameRef = useRef<number | null>(null);
+  
+  // Add visual feedback state
+  const [feedback, setFeedback] = useState<string | null>(null);
   
   // Sync tool state with store
   useEffect(() => {
     if (storeActiveTool === 'occluder') {
       setActiveTool('occluder');
       setOccluder(prev => ({ ...prev, active: true }));
+      setTarget(prev => ({ ...prev, active: false }));
+      setPrism(prev => ({ ...prev, active: false }));
     } else if (storeActiveTool === 'target') {
       setActiveTool('target');
       setTarget(prev => ({ ...prev, active: true }));
+      setOccluder(prev => ({ ...prev, active: false }));
+      setPrism(prev => ({ ...prev, active: false }));
+    } else if (storeActiveTool === 'prism') {
+      setActiveTool('prism');
+      setPrism(prev => ({ ...prev, active: true }));
+      setOccluder(prev => ({ ...prev, active: false }));
+      setTarget(prev => ({ ...prev, active: false }));
     } else {
       setActiveTool(null);
       setOccluder(prev => ({ ...prev, active: false }));
       setTarget(prev => ({ ...prev, active: false }));
+      setPrism(prev => ({ ...prev, active: false }));
     }
   }, [storeActiveTool]);
 
@@ -215,6 +263,11 @@ const TwoDotFiveModel = () => {
     }
   }, [occluderPosition, eyeCenterOD, eyeCenterOS]);
 
+  // Sync prism values with store
+  useEffect(() => {
+    setPrism(prev => ({ ...prev, value: prismValue, axis: prismAxis }));
+  }, [prismValue, prismAxis]);
+
   // Load images once on component mount
   useEffect(() => {
     const imageList = [
@@ -223,6 +276,7 @@ const TwoDotFiveModel = () => {
       { name: 'plainEye', src: '/images/2.5D-new/n_eye_plain.png' },
       { name: 'occluder', src: '/images/2.5D-new/n_cover.png' },
       { name: 'target', src: '/images/2.5D-new/target_stick.png' },
+      { name: 'prism', src: '/images/2.5D-new/prism.png' },
       { name: 'lightReflex', src: '/images/2.5D-new/lightReflex.png' },
       { name: 'kidEye', src: '/images/2.5D-new/n_eye_kid.png' },
       { name: 'girlEye', src: '/images/2.5D-new/n_eye_girl.png' },
@@ -246,7 +300,22 @@ const TwoDotFiveModel = () => {
 
     const onImageError = (imageName: string) => {
       console.error(`Failed to load image: ${imageName}`);
-      setHasError(true);
+      
+      // Only set error state for critical images
+      if (['face', 'eye', 'occluder', 'target'].includes(imageName)) {
+        setHasError(true);
+      } else {
+        // For non-critical images like prism, just increment the counter
+        // so we don't block the whole component from loading
+        loadedCount++;
+        setLoadingProgress(Math.floor((loadedCount / imageList.length) * 100));
+        
+        // If this was the last image, set loaded state
+        if (loadedCount === imageList.length) {
+          setImagesLoaded(true);
+          setAssets(imageAssets);
+        }
+      }
     };
 
     // Preload all images
@@ -283,17 +352,23 @@ const TwoDotFiveModel = () => {
 
   // Handle mouse/touch interactions
   useEffect(() => {
-    if (!canvasRef3.current) return;
+    // Get all canvas references to ensure we capture events on all layers
+    const canvasRefs = [canvasRef1, canvasRef2, canvasRef3, canvasRef4];
+    const canvases = canvasRefs.map(ref => ref.current).filter(Boolean) as HTMLCanvasElement[];
+    
+    if (canvases.length === 0) return;
 
-    const canvas = canvasRef3.current;
-
+    // Create a root event handler for the container to capture all mouse events
+    const container = containerRef.current;
+    if (!container) return;
+    
     const handleMouseDown = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
+      // Get container bounds for coordinate conversion
+      const rect = container.getBoundingClientRect();
       
-      const mouseX = (e.clientX - rect.left) * scaleX;
-      const mouseY = (e.clientY - rect.top) * scaleY;
+      // Use the raw mouse position relative to the container
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
       // Calculate face image dimensions to maintain aspect ratio (same as in drawFrame)
       if (assets.face && assets.face.img) {
@@ -301,6 +376,7 @@ const TwoDotFiveModel = () => {
         const imgAspectRatio = faceImg.width / faceImg.height;
         const canvasAspectRatio = canvasSize.width / canvasSize.height;
         
+        // Calculate the scale factors and offsets
         let renderWidth, renderHeight, offsetX = 0, offsetY = 0;
         
         if (imgAspectRatio > canvasAspectRatio) {
@@ -313,10 +389,18 @@ const TwoDotFiveModel = () => {
           offsetX = (canvasSize.width - renderWidth) / 2;
         }
 
+        // Calculate the scale between canvas coordinates and element coordinates
+        const scaleX = canvasSize.width / rect.width;
+        const scaleY = canvasSize.height / rect.height;
+        
+        // Convert mouse coordinates to canvas coordinates
+        const canvasMouseX = mouseX * scaleX;
+        const canvasMouseY = mouseY * scaleY;
+
         const eyeAdjustScaleX = renderWidth / 900;
         const eyeAdjustScaleY = renderHeight / 600;
         
-        // Calculate occluder and target positions
+        // Calculate occluder and target positions in canvas coordinates
         const adjustedOccluderX = occluder.x * eyeAdjustScaleX + offsetX;
         const adjustedOccluderY = occluder.y * eyeAdjustScaleY + offsetY;
         const adjustedOccluderWidth = occluder.width * eyeAdjustScaleX;
@@ -327,47 +411,85 @@ const TwoDotFiveModel = () => {
         const adjustedTargetWidth = target.width * eyeAdjustScaleX;
         const adjustedTargetHeight = target.height * eyeAdjustScaleY;
 
+        const adjustedPrismX = prism.x * eyeAdjustScaleX + offsetX;
+        const adjustedPrismY = prism.y * eyeAdjustScaleY + offsetY;
+        const adjustedPrismWidth = prism.width * eyeAdjustScaleX;
+        const adjustedPrismHeight = prism.height * eyeAdjustScaleY;
+
+        // Increase hit area size for easier selection
+        const hitAreaExpansion = 20;
+
         // Check if occluder is clicked (using adjusted positions)
         if (
           activeTool === 'occluder' &&
-          occluder.active &&
-          mouseX >= adjustedOccluderX - adjustedOccluderWidth / 2 &&
-          mouseX <= adjustedOccluderX + adjustedOccluderWidth / 2 &&
-          mouseY >= adjustedOccluderY - adjustedOccluderHeight / 2 &&
-          mouseY <= adjustedOccluderY + adjustedOccluderHeight / 2
+          canvasMouseX >= adjustedOccluderX - (adjustedOccluderWidth / 2 + hitAreaExpansion) &&
+          canvasMouseX <= adjustedOccluderX + (adjustedOccluderWidth / 2 + hitAreaExpansion) &&
+          canvasMouseY >= adjustedOccluderY - (adjustedOccluderHeight / 2 + hitAreaExpansion) &&
+          canvasMouseY <= adjustedOccluderY + (adjustedOccluderHeight / 2 + hitAreaExpansion)
         ) {
           setOccluder(prev => ({ ...prev, dragging: true }));
           dragStartRef.current = { 
-            x: mouseX - adjustedOccluderX, 
-            y: mouseY - adjustedOccluderY 
+            x: canvasMouseX - adjustedOccluderX, 
+            y: canvasMouseY - adjustedOccluderY 
           };
+          setFeedback("Dragging Occluder");
+          e.preventDefault(); // Prevent default to avoid text selection
         }
         
         // Check if target is clicked (using adjusted positions)
         if (
           activeTool === 'target' &&
-          target.active &&
-          mouseX >= adjustedTargetX - adjustedTargetWidth / 2 &&
-          mouseX <= adjustedTargetX + adjustedTargetWidth / 2 &&
-          mouseY >= adjustedTargetY &&
-          mouseY <= adjustedTargetY + adjustedTargetHeight
+          canvasMouseX >= adjustedTargetX - (adjustedTargetWidth / 2 + hitAreaExpansion) &&
+          canvasMouseX <= adjustedTargetX + (adjustedTargetWidth / 2 + hitAreaExpansion) &&
+          canvasMouseY >= adjustedTargetY - hitAreaExpansion &&
+          canvasMouseY <= adjustedTargetY + adjustedTargetHeight + hitAreaExpansion
         ) {
           setTarget(prev => ({ ...prev, dragging: true }));
           dragStartRef.current = { 
-            x: mouseX - adjustedTargetX, 
-            y: mouseY - adjustedTargetY 
+            x: canvasMouseX - adjustedTargetX, 
+            y: canvasMouseY - adjustedTargetY 
           };
+          setFeedback("Dragging Target");
+          e.preventDefault(); // Prevent default to avoid text selection
+        }
+
+        // Check if prism is clicked
+        if (
+          activeTool === 'prism' &&
+          canvasMouseX >= adjustedPrismX - (adjustedPrismWidth / 2 + hitAreaExpansion) &&
+          canvasMouseX <= adjustedPrismX + (adjustedPrismWidth / 2 + hitAreaExpansion) &&
+          canvasMouseY >= adjustedPrismY - (adjustedPrismHeight / 2 + hitAreaExpansion) &&
+          canvasMouseY <= adjustedPrismY + (adjustedPrismHeight / 2 + hitAreaExpansion)
+        ) {
+          setPrism(prev => ({ ...prev, dragging: true }));
+          dragStartRef.current = { 
+            x: canvasMouseX - adjustedPrismX, 
+            y: canvasMouseY - adjustedPrismY 
+          };
+          setFeedback("Dragging Prism");
+          e.preventDefault(); // Prevent default to avoid text selection
         }
       }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
+      // Only process if we're actually dragging something
+      if (!occluder.dragging && !target.dragging && !prism.dragging) return;
       
-      const mouseX = (e.clientX - rect.left) * scaleX;
-      const mouseY = (e.clientY - rect.top) * scaleY;
+      // Get container bounds for coordinate conversion
+      const rect = container.getBoundingClientRect();
+      
+      // Use the raw mouse position relative to the container
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      // Calculate the scale between canvas coordinates and element coordinates
+      const scaleX = canvasSize.width / rect.width;
+      const scaleY = canvasSize.height / rect.height;
+      
+      // Convert mouse coordinates to canvas coordinates
+      const canvasMouseX = mouseX * scaleX;
+      const canvasMouseY = mouseY * scaleY;
 
       // Calculate image scaling factors
       if (assets.face && assets.face.img) {
@@ -409,8 +531,8 @@ const TwoDotFiveModel = () => {
         // Move occluder if dragging
         if (occluder.dragging) {
           // First convert mouse position back to original coordinate space
-          const originalX = (mouseX - offsetX) / eyeAdjustScaleX;
-          const originalY = (mouseY - offsetY) / eyeAdjustScaleY;
+          const originalX = (canvasMouseX - offsetX) / eyeAdjustScaleX;
+          const originalY = (canvasMouseY - offsetY) / eyeAdjustScaleY;
           const newX = originalX - dragStartRef.current.x / eyeAdjustScaleX;
           const newY = originalY - dragStartRef.current.y / eyeAdjustScaleY;
           
@@ -418,32 +540,102 @@ const TwoDotFiveModel = () => {
           
           // Determine which eye is covered (using adjusted positions)
           const leftDist = Math.hypot(
-            mouseX - adjustedEyeCenterOD.x, 
-            mouseY - adjustedEyeCenterOD.y
+            canvasMouseX - adjustedEyeCenterOD.x, 
+            canvasMouseY - adjustedEyeCenterOD.y
           );
           const rightDist = Math.hypot(
-            mouseX - adjustedEyeCenterOS.x, 
-            mouseY - adjustedEyeCenterOS.y
+            canvasMouseX - adjustedEyeCenterOS.x, 
+            canvasMouseY - adjustedEyeCenterOS.y
           );
           
-          if (leftDist < rightDist && leftDist < 100 * Math.min(eyeAdjustScaleX, eyeAdjustScaleY)) {
+          const proximityThreshold = 120 * Math.min(eyeAdjustScaleX, eyeAdjustScaleY);
+          
+          if (leftDist < rightDist && leftDist < proximityThreshold) {
             setOccluderPosition('left');
-          } else if (rightDist < 100 * Math.min(eyeAdjustScaleX, eyeAdjustScaleY)) {
+            setFeedback("Occluding Left Eye");
+          } else if (rightDist < proximityThreshold) {
             setOccluderPosition('right');
+            setFeedback("Occluding Right Eye");
           } else {
             setOccluderPosition(null);
+            setFeedback("Dragging Occluder");
           }
+          
+          e.preventDefault();
         }
         
         // Move target if dragging
         if (target.dragging) {
           // First convert mouse position back to original coordinate space
-          const originalX = (mouseX - offsetX) / eyeAdjustScaleX;
-          const originalY = (mouseY - offsetY) / eyeAdjustScaleY;
+          const originalX = (canvasMouseX - offsetX) / eyeAdjustScaleX;
+          const originalY = (canvasMouseY - offsetY) / eyeAdjustScaleY;
           const newX = originalX - dragStartRef.current.x / eyeAdjustScaleX;
           const newY = originalY - dragStartRef.current.y / eyeAdjustScaleY;
           
           setTarget(prev => ({ ...prev, x: newX, y: newY }));
+
+          // Update iris positions to look at target
+          const centerX = canvasSize.width / 2;
+          const centerY = canvasSize.height / 2;
+          
+          // Calculate normalized direction from center to target (-1 to 1 range)
+          const dirX = (canvasMouseX - centerX) / (centerX);
+          const dirY = (canvasMouseY - centerY) / (centerY);
+          
+          // Apply to iris positions with a scaled factor
+          setIrisPosition('left', { x: dirX * 0.5, y: dirY * 0.5 });
+          setIrisPosition('right', { x: dirX * 0.5, y: dirY * 0.5 });
+          
+          e.preventDefault();
+        }
+
+        // Move prism if dragging
+        if (prism.dragging) {
+          // First convert mouse position back to original coordinate space
+          const originalX = (canvasMouseX - offsetX) / eyeAdjustScaleX;
+          const originalY = (canvasMouseY - offsetY) / eyeAdjustScaleY;
+          const newX = originalX - dragStartRef.current.x / eyeAdjustScaleX;
+          const newY = originalY - dragStartRef.current.y / eyeAdjustScaleY;
+          
+          setPrism(prev => ({ ...prev, x: newX, y: newY }));
+
+          // Get the center of the canvas
+          const centerX = canvasSize.width / 2;
+          const centerY = canvasSize.height / 2;
+          
+          // Calculate distance from center (affects prism value)
+          const dx = canvasMouseX - centerX;
+          const dy = canvasMouseY - centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Convert distance to prism value (1-20 range)
+          // Normalize distance to max container dimension
+          const maxDimension = Math.max(canvasSize.width, canvasSize.height) / 2;
+          const normalizedDistance = Math.min(distance / maxDimension, 1);
+          const newPrismValue = Math.round(normalizedDistance * 20);
+          
+          // Calculate angle (affects prism axis)
+          // atan2 returns angle in radians, convert to degrees
+          let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          // Convert to 0-360 range
+          angle = (angle + 360) % 360;
+          // Round to nearest 15 degrees
+          const roundedAngle = Math.round(angle / 15) * 15;
+          
+          // Update prism values in the store
+          setPrismValue(newPrismValue);
+          setPrismAxis(roundedAngle);
+
+          // Apply prism effect to iris positions
+          const angleRadians = (roundedAngle * Math.PI) / 180;
+          const displacementFactor = newPrismValue / 40; // Scale factor
+          const displacementX = Math.cos(angleRadians) * displacementFactor;
+          const displacementY = Math.sin(angleRadians) * displacementFactor;
+          
+          setIrisPosition('left', { x: displacementX, y: displacementY });
+          setIrisPosition('right', { x: displacementX, y: displacementY });
+          
+          e.preventDefault();
         }
       }
     };
@@ -451,30 +643,76 @@ const TwoDotFiveModel = () => {
     const handleMouseUp = () => {
       setOccluder(prev => ({ ...prev, dragging: false }));
       setTarget(prev => ({ ...prev, dragging: false }));
+      setPrism(prev => ({ ...prev, dragging: false }));
+      setFeedback(null);
     };
 
-    // Add event listeners
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseout', handleMouseUp);
+    // Add mouse event listeners to the container instead of individual canvases
+    container.addEventListener('mousedown', handleMouseDown);
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mouseleave', handleMouseUp);
+    
+    // Add touch event handlers for mobile devices
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent('mousedown', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      handleMouseDown(mouseEvent);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent('mousemove', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      handleMouseMove(mouseEvent);
+      
+      // Prevent scrolling when dragging
+      if (occluder.dragging || target.dragging || prism.dragging) {
+        e.preventDefault();
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      handleMouseUp();
+    };
+    
+    container.addEventListener('touchstart', handleTouchStart);
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
 
     return () => {
-      // Remove event listeners
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseout', handleMouseUp);
+      // Clean up all event listeners
+      container.removeEventListener('mousedown', handleMouseDown);
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('mouseleave', handleMouseUp);
+      
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
     };
   }, [
     activeTool, 
     occluder, 
     target, 
+    prism,
     eyeCenterOD, 
     eyeCenterOS, 
     setOccluderPosition, 
     assets.face, 
-    canvasSize
+    canvasSize,
+    prismValue,
+    prismAxis,
+    setPrismValue,
+    setPrismAxis,
+    setIrisPosition
   ]);
 
   // Calculate eye positions based on deviations and store values
@@ -838,6 +1076,72 @@ const TwoDotFiveModel = () => {
             );
           }
 
+          // Draw prism on layer 3 (tools layer)
+          if (prism.active) {
+            // Adjust prism position and size based on image scale
+            const adjustedPrismX = prism.x * eyeAdjustScaleX + offsetX;
+            const adjustedPrismY = prism.y * eyeAdjustScaleY + offsetY;
+            const adjustedPrismWidth = prism.width * eyeAdjustScaleX;
+            const adjustedPrismHeight = prism.height * eyeAdjustScaleY;
+            
+            // Save context to restore after rotation
+            ctx3.save();
+            
+            // Translate to the center of where the prism will be drawn
+            ctx3.translate(adjustedPrismX, adjustedPrismY);
+            
+            // Rotate the context by the prism axis angle
+            ctx3.rotate((prism.axis * Math.PI) / 180);
+            
+            if (assets.prism && assets.prism.img) {
+              // Draw the prism image centered at the origin (0,0) of the rotated context
+              ctx3.drawImage(
+                assets.prism.img,
+                -adjustedPrismWidth / 2,  // Center the image horizontally
+                -adjustedPrismHeight / 2, // Center the image vertically
+                adjustedPrismWidth,
+                adjustedPrismHeight
+              );
+            } else {
+              // Fallback to drawing a triangle shape if image isn't available
+              const halfWidth = adjustedPrismWidth / 2;
+              const halfHeight = adjustedPrismHeight / 2;
+              
+              // Create a semi-transparent blue triangle
+              ctx3.beginPath();
+              ctx3.moveTo(0, -halfHeight); // Top point
+              ctx3.lineTo(halfWidth, halfHeight); // Bottom right
+              ctx3.lineTo(-halfWidth, halfHeight); // Bottom left
+              ctx3.closePath();
+              
+              // Fill with semi-transparent blue color
+              ctx3.fillStyle = 'rgba(173, 216, 230, 0.5)';
+              ctx3.fill();
+              
+              // Add a border
+              ctx3.strokeStyle = 'rgba(100, 150, 200, 0.8)';
+              ctx3.lineWidth = 2;
+              ctx3.stroke();
+            }
+            
+            // Draw prism value text
+            ctx3.font = '14px Arial';
+            ctx3.fillStyle = 'white';
+            ctx3.textAlign = 'center';
+            ctx3.fillText(`${prism.value}Δ`, 0, -adjustedPrismHeight / 2 - 10);
+            
+            // Draw prism axis indicator line
+            ctx3.beginPath();
+            ctx3.moveTo(0, 0);
+            ctx3.lineTo(0, -adjustedPrismHeight * 0.7);
+            ctx3.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx3.lineWidth = 2;
+            ctx3.stroke();
+            
+            // Restore the context to its original state
+            ctx3.restore();
+          }
+
           // 7. Draw UI overlay on layer 4
           ctx4.fillStyle = 'rgba(0, 0, 0, 0.7)';
           ctx4.fillRect(10, 10, 80, 60);
@@ -851,6 +1155,47 @@ const TwoDotFiveModel = () => {
           const yDelta = Math.round(hypertropia - hypotropia);
           ctx4.fillText(`X: ${xDelta === 0 ? '0' : xDelta > 0 ? '+' + xDelta : xDelta}Δ`, 20, 50);
           ctx4.fillText(`Y: ${yDelta === 0 ? '0' : yDelta > 0 ? '+' + yDelta : yDelta}Δ`, 20, 65);
+          
+          // Add a gaze direction indicator when target tool is active
+          if (target.active) {
+            // Position the indicator in top right corner
+            const indicatorX = canvasSize.width - 100;
+            const indicatorY = 50;
+            const indicatorRadius = 30;
+            
+            // Draw circular background
+            ctx4.beginPath();
+            ctx4.arc(indicatorX, indicatorY, indicatorRadius, 0, Math.PI * 2);
+            ctx4.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx4.fill();
+            
+            // Draw crosshairs
+            ctx4.beginPath();
+            ctx4.moveTo(indicatorX - indicatorRadius, indicatorY);
+            ctx4.lineTo(indicatorX + indicatorRadius, indicatorY);
+            ctx4.moveTo(indicatorX, indicatorY - indicatorRadius);
+            ctx4.lineTo(indicatorX, indicatorY + indicatorRadius);
+            ctx4.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx4.lineWidth = 1;
+            ctx4.stroke();
+            
+            // Calculate gaze direction from eye positions
+            // Use iris position directly for direction indicator
+            const dirX = irisPosition.left.x * 25; // Scale factor for visualization
+            const dirY = irisPosition.left.y * 25;
+            
+            // Draw direction indicator
+            ctx4.beginPath();
+            ctx4.arc(indicatorX + dirX, indicatorY + dirY, 5, 0, Math.PI * 2);
+            ctx4.fillStyle = '#f05658';
+            ctx4.fill();
+            
+            // Label the indicator
+            ctx4.fillStyle = 'white';
+            ctx4.font = '12px Arial';
+            ctx4.textAlign = 'center';
+            ctx4.fillText('Gaze', indicatorX, indicatorY - indicatorRadius - 10);
+          }
         }
       } catch (error) {
         console.error('Error drawing canvas:', error);
@@ -886,7 +1231,10 @@ const TwoDotFiveModel = () => {
     occluderPosition,
     pupilSize,
     irisColor,
-    eyeSize
+    eyeSize,
+    prism,
+    prismValue,
+    prismAxis,
   ]);
 
   // Handler for occluder tool button
@@ -911,6 +1259,22 @@ const TwoDotFiveModel = () => {
       setActiveTool('target');
       setStoreActiveTool('target');
       setTarget(prev => ({ ...prev, active: true }));
+    }
+  };
+
+  // Handler for prism tool button
+  const handlePrismToggle = () => {
+    if (activeTool === 'prism') {
+      setActiveTool(null);
+      setStoreActiveTool('none');
+      setPrism(prev => ({ ...prev, active: false }));
+      // Reset iris positions when deactivating prism
+      setIrisPosition('left', { x: 0, y: 0 });
+      setIrisPosition('right', { x: 0, y: 0 });
+    } else {
+      setActiveTool('prism');
+      setStoreActiveTool('prism');
+      setPrism(prev => ({ ...prev, active: true }));
     }
   };
 
@@ -945,6 +1309,13 @@ const TwoDotFiveModel = () => {
       <Canvas ref={canvasRef3} /> {/* Tools layer */}
       <Canvas ref={canvasRef4} /> {/* UI elements layer */}
       
+      {/* Add visual feedback when dragging tools */}
+      {feedback && (
+        <DragFeedback>
+          <span>{feedback}</span>
+        </DragFeedback>
+      )}
+      
       <ControlsOverlay>
         <ToolButton 
           active={activeTool === 'occluder'} 
@@ -967,6 +1338,17 @@ const TwoDotFiveModel = () => {
             <circle cx="12" cy="12" r="2" />
           </svg>
           Target
+        </ToolButton>
+
+        <ToolButton 
+          active={activeTool === 'prism'} 
+          onClick={handlePrismToggle}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2L2 19h20L12 2z" />
+            <path d="M12 19v-6" />
+          </svg>
+          Prism
         </ToolButton>
       </ControlsOverlay>
       
