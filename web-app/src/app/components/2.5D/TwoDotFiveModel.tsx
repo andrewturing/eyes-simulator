@@ -589,6 +589,7 @@ const TwoDotFiveModel = () => {
           }
           
           // Apply to iris positions with a scaled factor (overriding any deviation settings temporarily)
+          // Use a direct value rather than incremental update
           setIrisPosition('left', { x: dirX * 0.5, y: dirY * 0.5 });
           setIrisPosition('right', { x: dirX * 0.5, y: dirY * 0.5 });
           
@@ -644,6 +645,7 @@ const TwoDotFiveModel = () => {
           const displacementX = Math.cos(angleRadians) * displacementFactor;
           const displacementY = Math.sin(angleRadians) * displacementFactor;
           
+          // Use a direct value rather than incremental update
           setIrisPosition('left', { x: displacementX, y: displacementY });
           setIrisPosition('right', { x: displacementX, y: displacementY });
           
@@ -812,6 +814,16 @@ const TwoDotFiveModel = () => {
       }
     };
 
+    // Skip applying deviations if active tools should override them
+    const isTargetOrPrism = 
+      activeTool === 'target' || 
+      activeTool === 'prism';
+
+    if (isTargetOrPrism) {
+      setEyePositions(newEyePositions);
+      return;
+    }
+
     // Calculate total deviation offsets for both eyes
     let leftXOffset = 0;
     let leftYOffset = 0;
@@ -845,13 +857,17 @@ const TwoDotFiveModel = () => {
     const normalizedRightX = rightXOffset / 10;
     const normalizedRightY = rightYOffset / 10;
 
-    // Update iris positions only if there's any actual change
-    // This prevents unnecessary setIrisPosition calls that could trigger re-renders
-    if (normalizedLeftX !== 0 || normalizedLeftY !== 0 || 
-        normalizedRightX !== 0 || normalizedRightY !== 0) {
+    // Only update if there are significant deviations and we're not using tools
+    // This avoids creating an infinite update loop
+    const hasSignificantDeviations = 
+      Math.abs(normalizedLeftX) > 0.1 || 
+      Math.abs(normalizedLeftY) > 0.1 || 
+      Math.abs(normalizedRightX) > 0.1 || 
+      Math.abs(normalizedRightY) > 0.1;
       
-      // Important: directly set new values instead of using previous values
-      // This prevents infinite update loops
+    if (hasSignificantDeviations && !isTargetOrPrism) {
+      // Apply deviations directly without referencing irisPosition
+      // This prevents the infinite loop
       setIrisPosition('left', { 
         x: normalizedLeftX, 
         y: normalizedLeftY 
@@ -876,8 +892,9 @@ const TwoDotFiveModel = () => {
     hyperphoria,
     hypophoria,
     occluderPosition,
-    setIrisPosition
-    // Removed irisPosition from dependencies to break the infinite loop
+    setIrisPosition,
+    activeTool
+    // Remove irisPosition from dependencies to break the infinite loop
   ]);
 
   // Setup and run the animation loop
@@ -1005,16 +1022,21 @@ const TwoDotFiveModel = () => {
             );
             ctx2.clip();
             
-            // Calculate iris position
-            const irisOffsetX = (eyePosition.left.x * 20 + irisPosition.left.x * 15) * eyeAdjustScaleX;
-            const irisOffsetY = (eyePosition.left.y * 20 + irisPosition.left.y * 10) * eyeAdjustScaleY;
-            
+            // Calculate iris position with stronger weighting for joystick movement
+            // Add deviation effects from stored deviation values rather than direct state
+            const irisOffsetX = (eyePosition.left.x * 40) * eyeAdjustScaleX;
+            const irisOffsetY = (eyePosition.left.y * 40) * eyeAdjustScaleY;
+
+            // Add the deviation component separately - these are stored in irisPosition
+            const deviationOffsetX = irisPosition.left.x * 25 * eyeAdjustScaleX;
+            const deviationOffsetY = irisPosition.left.y * 25 * eyeAdjustScaleY;
+
             // Draw left iris directly without the sclera (white part)
             ctx2.beginPath();
             ctx2.fillStyle = irisColor.left;
             ctx2.arc(
-              adjustedEyeCenterOD.x + irisOffsetX,
-              adjustedEyeCenterOD.y + irisOffsetY,
+              adjustedEyeCenterOD.x + irisOffsetX + deviationOffsetX,
+              adjustedEyeCenterOD.y + irisOffsetY + deviationOffsetY,
               irisRadius * eyeSize.left,
               0, Math.PI * 2
             );
@@ -1029,8 +1051,8 @@ const TwoDotFiveModel = () => {
             ctx2.beginPath();
             ctx2.fillStyle = '#000000';
             ctx2.arc(
-              adjustedEyeCenterOD.x + irisOffsetX + pupilOffsetX,
-              adjustedEyeCenterOD.y + irisOffsetY + pupilOffsetY,
+              adjustedEyeCenterOD.x + irisOffsetX + deviationOffsetX + pupilOffsetX,
+              adjustedEyeCenterOD.y + irisOffsetY + deviationOffsetY + pupilOffsetY,
               pupilRadius,  // Use the calculated pupil radius directly
               0, Math.PI * 2
             );
@@ -1040,8 +1062,8 @@ const TwoDotFiveModel = () => {
             ctx2.beginPath();
             ctx2.fillStyle = '#ffffff';
             ctx2.arc(
-              adjustedEyeCenterOD.x + irisOffsetX + pupilOffsetX + 2 * eyeAdjustScaleX,
-              adjustedEyeCenterOD.y + irisOffsetY + pupilOffsetY - 2 * eyeAdjustScaleY,
+              adjustedEyeCenterOD.x + irisOffsetX + deviationOffsetX + pupilOffsetX + 2 * eyeAdjustScaleX,
+              adjustedEyeCenterOD.y + irisOffsetY + deviationOffsetY + pupilOffsetY - 2 * eyeAdjustScaleY,
               3 * eyeAdjustScaleX,
               0, Math.PI * 2
             );
@@ -1066,16 +1088,20 @@ const TwoDotFiveModel = () => {
             );
             ctx2.clip();
             
-            // Calculate iris position
-            const irisOffsetX = (eyePosition.right.x * 20 + irisPosition.right.x * 15) * eyeAdjustScaleX;
-            const irisOffsetY = (eyePosition.right.y * 20 + irisPosition.right.y * 10) * eyeAdjustScaleY;
-            
+            // Calculate iris position with stronger weighting for joystick movement
+            const irisOffsetX = (eyePosition.right.x * 40) * eyeAdjustScaleX;
+            const irisOffsetY = (eyePosition.right.y * 40) * eyeAdjustScaleY;
+
+            // Add the deviation component separately
+            const deviationOffsetX = irisPosition.right.x * 25 * eyeAdjustScaleX;
+            const deviationOffsetY = irisPosition.right.y * 25 * eyeAdjustScaleY;
+
             // Draw right iris directly without the sclera (white part)
             ctx2.beginPath();
             ctx2.fillStyle = irisColor.right;
             ctx2.arc(
-              adjustedEyeCenterOS.x + irisOffsetX,
-              adjustedEyeCenterOS.y + irisOffsetY,
+              adjustedEyeCenterOS.x + irisOffsetX + deviationOffsetX,
+              adjustedEyeCenterOS.y + irisOffsetY + deviationOffsetY,
               irisRadius * eyeSize.right,
               0, Math.PI * 2
             );
@@ -1092,8 +1118,8 @@ const TwoDotFiveModel = () => {
             ctx2.beginPath();
             ctx2.fillStyle = '#000000';
             ctx2.arc(
-              adjustedEyeCenterOS.x + irisOffsetX + pupilOffsetX,
-              adjustedEyeCenterOS.y + irisOffsetY + pupilOffsetY,
+              adjustedEyeCenterOS.x + irisOffsetX + deviationOffsetX + pupilOffsetX,
+              adjustedEyeCenterOS.y + irisOffsetY + deviationOffsetY + pupilOffsetY,
               rightPupilRadius,  // Use the calculated pupil radius for right eye
               0, Math.PI * 2
             );
@@ -1103,8 +1129,8 @@ const TwoDotFiveModel = () => {
             ctx2.beginPath();
             ctx2.fillStyle = '#ffffff';
             ctx2.arc(
-              adjustedEyeCenterOS.x + irisOffsetX + pupilOffsetX + 2 * eyeAdjustScaleX,
-              adjustedEyeCenterOS.y + irisOffsetY + pupilOffsetY - 2 * eyeAdjustScaleY,
+              adjustedEyeCenterOS.x + irisOffsetX + deviationOffsetX + pupilOffsetX + 2 * eyeAdjustScaleX,
+              adjustedEyeCenterOS.y + irisOffsetY + deviationOffsetY + pupilOffsetY - 2 * eyeAdjustScaleY,
               3 * eyeAdjustScaleX,
               0, Math.PI * 2
             );
@@ -1307,6 +1333,9 @@ const TwoDotFiveModel = () => {
     prism,
     prismValue,
     prismAxis,
+    irisPosition,
+    eyePosition,
+    pupilPosition
   ]);
 
   // Handler for occluder tool button
