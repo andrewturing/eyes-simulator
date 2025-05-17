@@ -582,7 +582,13 @@ const TwoDotFiveModel = () => {
           const dirX = (canvasMouseX - centerX) / (centerX);
           const dirY = (canvasMouseY - centerY) / (centerY);
           
-          // Apply to iris positions with a scaled factor
+          // Store current deviation-based positions before applying target gaze
+          if (!target.active) {
+            // Only set target active on first drag movement
+            setTarget(prev => ({ ...prev, active: true }));
+          }
+          
+          // Apply to iris positions with a scaled factor (overriding any deviation settings temporarily)
           setIrisPosition('left', { x: dirX * 0.5, y: dirY * 0.5 });
           setIrisPosition('right', { x: dirX * 0.5, y: dirY * 0.5 });
           
@@ -626,7 +632,13 @@ const TwoDotFiveModel = () => {
           setPrismValue(newPrismValue);
           setPrismAxis(roundedAngle);
 
-          // Apply prism effect to iris positions
+          // Store current deviation-based positions before applying prism effect
+          if (!prism.active) {
+            // Only set prism active on first drag movement
+            setPrism(prev => ({ ...prev, active: true }));
+          }
+          
+          // Apply prism effect to iris positions (overriding any deviation settings temporarily)
           const angleRadians = (roundedAngle * Math.PI) / 180;
           const displacementFactor = newPrismValue / 40; // Scale factor
           const displacementX = Math.cos(angleRadians) * displacementFactor;
@@ -641,10 +653,64 @@ const TwoDotFiveModel = () => {
     };
 
     const handleMouseUp = () => {
+      // Check if we were previously dragging a tool
+      const wasDraggingTool = occluder.dragging || target.dragging || prism.dragging;
+      
+      // Reset dragging states
       setOccluder(prev => ({ ...prev, dragging: false }));
       setTarget(prev => ({ ...prev, dragging: false }));
       setPrism(prev => ({ ...prev, dragging: false }));
+      
+      // Clear drag feedback
       setFeedback(null);
+      
+      // If we were dragging target or prism, restore eye deviations
+      if ((target.dragging || prism.dragging) && wasDraggingTool) {
+        // Let the deviation effect hook handle resetting positions
+        // This will happen on next render cycle
+        
+        // Calculate deviation effects for each eye
+        const horizontalScale = 2;
+        const verticalScale = 2;
+        
+        // Calculate tropias for left eye
+        const leftXOffset = (esotropia * horizontalScale) - (exotropia * horizontalScale);
+        const leftYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+        
+        // Calculate tropias for right eye
+        const rightXOffset = -(esotropia * horizontalScale) + (exotropia * horizontalScale);
+        const rightYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+        
+        // Apply phorias if needed
+        let finalLeftX = leftXOffset;
+        let finalLeftY = leftYOffset;
+        let finalRightX = rightXOffset;
+        let finalRightY = rightYOffset;
+        
+        if (occluderPosition === 'left') {
+          const leftPhoriaX = (esophoria * horizontalScale) - (exophoria * horizontalScale);
+          const leftPhoriaY = -(hyperphoria * verticalScale) + (hypophoria * verticalScale);
+          finalLeftX += leftPhoriaX;
+          finalLeftY += leftPhoriaY;
+        }
+        
+        if (occluderPosition === 'right') {
+          const rightPhoriaX = -(esophoria * horizontalScale) + (exophoria * horizontalScale);
+          const rightPhoriaY = -(hyperphoria * verticalScale) + (hypophoria * verticalScale);
+          finalRightX += rightPhoriaX;
+          finalRightY += rightPhoriaY;
+        }
+        
+        // For target, we want to maintain the target position
+        // For prism, we need to maintain the prism effect
+        if (activeTool === 'target' || activeTool === 'prism') {
+          // Let the active tool maintain control
+        } else {
+          // Apply to iris positions
+          setIrisPosition('left', { x: finalLeftX/10, y: finalLeftY/10 });
+          setIrisPosition('right', { x: finalRightX/10, y: finalRightY/10 });
+        }
+      }
     };
 
     // Add mouse event listeners to the container instead of individual canvases
@@ -712,7 +778,16 @@ const TwoDotFiveModel = () => {
     prismAxis,
     setPrismValue,
     setPrismAxis,
-    setIrisPosition
+    setIrisPosition,
+    esotropia,
+    exotropia,
+    hypertropia,
+    hypotropia,
+    esophoria,
+    exophoria,
+    hyperphoria,
+    hypophoria,
+    occluderPosition
   ]);
 
   // Calculate eye positions based on deviations and store values
@@ -721,81 +796,77 @@ const TwoDotFiveModel = () => {
     const horizontalScale = 2;
     const verticalScale = 2;
 
+    // Create base eye positions
     const newEyePositions = {
       left: {
         x: eyeCenterOD.x,
         y: eyeCenterOD.y,
-        pupilOffsetX: 0, // We'll now use direct irisPosition and pupilPosition for drawing
+        pupilOffsetX: 0,
         pupilOffsetY: 0
       },
       right: {
         x: eyeCenterOS.x,
         y: eyeCenterOS.y,
-        pupilOffsetX: 0, // We'll now use direct irisPosition and pupilPosition for drawing
+        pupilOffsetX: 0,
         pupilOffsetY: 0
       }
     };
 
-    // Apply manifest deviations (tropias) to both eyes by updating the eye store
-    // This ensures the controls show the correct deviations
-    
-    // Left eye horizontal deviations
-    const leftXOffset = (esotropia * horizontalScale) - (exotropia * horizontalScale);
-    // Handle deviation through the store - this will be used for UI display and pupil position
-    if (leftXOffset !== 0) {
-      const newX = irisPosition.left.x + leftXOffset/10;
-      setIrisPosition('left', { x: newX, y: irisPosition.left.y });
-    }
+    // Calculate total deviation offsets for both eyes
+    let leftXOffset = 0;
+    let leftYOffset = 0;
+    let rightXOffset = 0;
+    let rightYOffset = 0;
 
-    // Left eye vertical deviations
-    const leftYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
-    if (leftYOffset !== 0) {
-      const newY = irisPosition.left.y + leftYOffset/10;
-      setIrisPosition('left', { x: irisPosition.left.x, y: newY });
-    }
-
-    // Right eye horizontal deviations
-    const rightXOffset = -(esotropia * horizontalScale) + (exotropia * horizontalScale);
-    if (rightXOffset !== 0) {
-      const newX = irisPosition.right.x + rightXOffset/10;
-      setIrisPosition('right', { x: newX, y: irisPosition.right.y });
-    }
-
-    // Right eye vertical deviations
-    const rightYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
-    if (rightYOffset !== 0) {
-      const newY = irisPosition.right.y + rightYOffset/10;
-      setIrisPosition('right', { x: irisPosition.right.x, y: newY });
-    }
+    // Apply manifest deviations (tropias)
+    leftXOffset += (esotropia * horizontalScale) - (exotropia * horizontalScale);
+    leftYOffset += -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+    rightXOffset += -(esotropia * horizontalScale) + (exotropia * horizontalScale);
+    rightYOffset += -(hypertropia * verticalScale) + (hypotropia * verticalScale);
 
     // Apply latent deviations (phorias) when eye is covered
     if (occluderPosition === 'left') {
       const leftPhoriaX = (esophoria * horizontalScale) - (exophoria * horizontalScale);
       const leftPhoriaY = -(hyperphoria * verticalScale) + (hypophoria * verticalScale);
-      if (leftPhoriaX !== 0 || leftPhoriaY !== 0) {
-        const newX = irisPosition.left.x + leftPhoriaX/10;
-        const newY = irisPosition.left.y + leftPhoriaY/10;
-        setIrisPosition('left', { x: newX, y: newY });
-      }
+      leftXOffset += leftPhoriaX;
+      leftYOffset += leftPhoriaY;
     }
 
     if (occluderPosition === 'right') {
       const rightPhoriaX = -(esophoria * horizontalScale) + (exophoria * horizontalScale);
       const rightPhoriaY = -(hyperphoria * verticalScale) + (hypophoria * verticalScale);
-      if (rightPhoriaX !== 0 || rightPhoriaY !== 0) {
-        const newX = irisPosition.right.x + rightPhoriaX/10;
-        const newY = irisPosition.right.y + rightPhoriaY/10;
-        setIrisPosition('right', { x: newX, y: newY });
-      }
+      rightXOffset += rightPhoriaX;
+      rightYOffset += rightPhoriaY;
+    }
+
+    // Convert to normalized values for the iris position
+    const normalizedLeftX = leftXOffset / 10;
+    const normalizedLeftY = leftYOffset / 10;
+    const normalizedRightX = rightXOffset / 10;
+    const normalizedRightY = rightYOffset / 10;
+
+    // Update iris positions only if there's any actual change
+    // This prevents unnecessary setIrisPosition calls that could trigger re-renders
+    if (normalizedLeftX !== 0 || normalizedLeftY !== 0 || 
+        normalizedRightX !== 0 || normalizedRightY !== 0) {
+      
+      // Important: directly set new values instead of using previous values
+      // This prevents infinite update loops
+      setIrisPosition('left', { 
+        x: normalizedLeftX, 
+        y: normalizedLeftY 
+      });
+      
+      setIrisPosition('right', { 
+        x: normalizedRightX, 
+        y: normalizedRightY 
+      });
     }
 
     setEyePositions(newEyePositions);
   }, [
     eyeCenterOD,
     eyeCenterOS,
-    eyePosition,
-    irisPosition,
-    pupilPosition,
     esotropia,
     exotropia,
     hypertropia,
@@ -806,6 +877,7 @@ const TwoDotFiveModel = () => {
     hypophoria,
     occluderPosition,
     setIrisPosition
+    // Removed irisPosition from dependencies to break the infinite loop
   ]);
 
   // Setup and run the animation loop
@@ -1243,6 +1315,22 @@ const TwoDotFiveModel = () => {
       setActiveTool(null);
       setStoreActiveTool('none');
       setOccluderPosition(null);
+      
+      // Reset iris positions to deviation settings only
+      const horizontalScale = 2;
+      const verticalScale = 2;
+      
+      // Calculate tropias for left eye
+      const leftXOffset = (esotropia * horizontalScale) - (exotropia * horizontalScale);
+      const leftYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Calculate tropias for right eye
+      const rightXOffset = -(esotropia * horizontalScale) + (exotropia * horizontalScale);
+      const rightYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Apply to iris positions
+      setIrisPosition('left', { x: leftXOffset/10, y: leftYOffset/10 });
+      setIrisPosition('right', { x: rightXOffset/10, y: rightYOffset/10 });
     } else {
       setActiveTool('occluder');
       setStoreActiveTool('occluder');
@@ -1255,6 +1343,22 @@ const TwoDotFiveModel = () => {
       setActiveTool(null);
       setStoreActiveTool('none');
       setTarget(prev => ({ ...prev, active: false }));
+      
+      // Reset iris positions to deviation settings only
+      const horizontalScale = 2;
+      const verticalScale = 2;
+      
+      // Calculate tropias for left eye
+      const leftXOffset = (esotropia * horizontalScale) - (exotropia * horizontalScale);
+      const leftYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Calculate tropias for right eye
+      const rightXOffset = -(esotropia * horizontalScale) + (exotropia * horizontalScale);
+      const rightYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Apply to iris positions
+      setIrisPosition('left', { x: leftXOffset/10, y: leftYOffset/10 });
+      setIrisPosition('right', { x: rightXOffset/10, y: rightYOffset/10 });
     } else {
       setActiveTool('target');
       setStoreActiveTool('target');
@@ -1268,9 +1372,22 @@ const TwoDotFiveModel = () => {
       setActiveTool(null);
       setStoreActiveTool('none');
       setPrism(prev => ({ ...prev, active: false }));
-      // Reset iris positions when deactivating prism
-      setIrisPosition('left', { x: 0, y: 0 });
-      setIrisPosition('right', { x: 0, y: 0 });
+      
+      // Reset iris positions to deviation settings only
+      const horizontalScale = 2;
+      const verticalScale = 2;
+      
+      // Calculate tropias for left eye
+      const leftXOffset = (esotropia * horizontalScale) - (exotropia * horizontalScale);
+      const leftYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Calculate tropias for right eye
+      const rightXOffset = -(esotropia * horizontalScale) + (exotropia * horizontalScale);
+      const rightYOffset = -(hypertropia * verticalScale) + (hypotropia * verticalScale);
+      
+      // Apply to iris positions
+      setIrisPosition('left', { x: leftXOffset/10, y: leftYOffset/10 });
+      setIrisPosition('right', { x: rightXOffset/10, y: rightYOffset/10 });
     } else {
       setActiveTool('prism');
       setStoreActiveTool('prism');
